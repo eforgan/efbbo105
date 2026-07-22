@@ -33,123 +33,127 @@ export async function generateCertificatePdf(data: CertificateData): Promise<voi
 
   const logoImg = await loadLogo();
   const signatureImg = await loadSignature();
-  const centerX = 148.5;
+  const centerX = 148.5; // A4 Landscape width (297mm) / 2
 
   // Full-page background
   doc.setFillColor(...SLATE_50);
   doc.rect(0, 0, 297, 210, 'F');
 
-  // Minimal-margin border
+  // Double border frame
   const margin = 6;
   doc.setDrawColor(...SKY_600);
   doc.setLineWidth(1.6);
   doc.rect(margin, margin, 297 - margin * 2, 210 - margin * 2);
   doc.setDrawColor(...SLATE_400);
-  doc.setLineWidth(0.2);
+  doc.setLineWidth(0.3);
   doc.rect(margin + 2.5, margin + 2.5, 297 - (margin + 2.5) * 2, 210 - (margin + 2.5) * 2);
 
   let y = 14;
 
-  // Logo, large and centered at the top
+  // 1. Logo (Enlarged to 48mm height with transparent background)
   if (logoImg) {
-    const imgHeight = 40;
+    const imgHeight = 48;
     const aspectRatio = logoImg.width / logoImg.height;
     const imgWidth = imgHeight * aspectRatio;
-    doc.addImage(logoImg.dataUrl, 'JPEG', centerX - imgWidth / 2, y, imgWidth, imgHeight);
+    doc.addImage(logoImg.dataUrl, 'PNG', centerX - imgWidth / 2, y, imgWidth, imgHeight);
     y += imgHeight;
   }
 
-  y += 6;
+  y += 5;
   doc.setDrawColor(...SKY_500);
-  doc.setLineWidth(0.6);
-  doc.line(centerX - 22, y, centerX + 22, y);
+  doc.setLineWidth(0.8);
+  doc.line(centerX - 30, y, centerX + 30, y);
 
-  y += 12;
+  // 2. Certificate Header
+  y += 13;
   doc.setFont('times', 'bold');
   doc.setFontSize(28);
   doc.setTextColor(...SLATE_900);
   doc.text('CERTIFICADO DE APROBACIÓN', centerX, y, { align: 'center' });
 
-  y += 10;
+  y += 11;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...SLATE_600);
   doc.text('Se certifica que', centerX, y, { align: 'center' });
 
-  y += 13;
+  // 3. Student / Pilot Name
+  y += 14;
   doc.setFont('times', 'bold');
   doc.setFontSize(26);
   doc.setTextColor(...SKY_600);
   doc.text(data.pilotName.toUpperCase(), centerX, y, { align: 'center' });
 
   if (data.licenseType && data.licenseNumber) {
-    y += 7;
+    y += 8;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setTextColor(...SLATE_600);
     doc.text(`Lic. ${data.licenseType} N° ${data.licenseNumber}`, centerX, y, { align: 'center' });
   }
 
-  y += 11;
+  // 4. Course Details
+  y += 12;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
+  doc.setFontSize(12);
   doc.setTextColor(...SLATE_600);
   doc.text('ha completado y aprobado exitosamente el', centerX, y, { align: 'center' });
 
-  y += 7;
+  y += 8;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...SLATE_900);
   doc.text(data.courseTitle, centerX, y, { align: 'center' });
 
-  y += 8;
+  y += 9;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(10.5);
   doc.setTextColor(...SLATE_600);
   doc.text(data.achievementLine, centerX, y, { align: 'center' });
 
   if (data.footerNote) {
-    y += 7;
+    y += 8;
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(...SLATE_400);
     const lines = doc.splitTextToSize(data.footerNote, 210);
     doc.text(lines, centerX, y, { align: 'center' });
   }
 
+  // 5. Date & Certificate Code
+  y += 9;
   doc.setFont('courier', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(8.5);
   doc.setTextColor(...SLATE_400);
-  doc.text(`Fecha de emisión: ${data.dateStr}   ·   N° ${data.certificateId}`, centerX, 163, { align: 'center' });
+  doc.text(`Fecha de emisión: ${data.dateStr}   ·   N° ${data.certificateId}`, centerX, y, { align: 'center' });
 
-  // Signature Line and Position
+  // 6. Signature Area (Enlarged signature to 30mm height with transparent background)
   const lineY = 188;
 
-  // Render transparent signature 50% larger (sigHeight = 24mm)
   if (signatureImg) {
-    const sigHeight = 24; // 50% larger than 16mm
+    const sigHeight = 30; // Enlarged to 30mm for clear presence
     const sigAspect = signatureImg.width / signatureImg.height;
     const sigWidth = sigHeight * sigAspect;
-    const sigY = lineY - sigHeight + 2; // Overlaps line slightly
+    const sigY = lineY - sigHeight + 3; // Overlaps line naturally
     doc.addImage(signatureImg.dataUrl, 'PNG', centerX - sigWidth / 2, sigY, sigWidth, sigHeight);
   }
 
   doc.setDrawColor(...SLATE_600);
-  doc.setLineWidth(0.3);
-  doc.line(centerX - 35, lineY, centerX + 35, lineY);
+  doc.setLineWidth(0.4);
+  doc.line(centerX - 38, lineY, centerX + 38, lineY);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(10.5);
   doc.setTextColor(...SLATE_900);
   doc.text('Eduardo J Forgan', centerX, lineY + 5, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(9);
   doc.setTextColor(...SLATE_600);
   doc.text('IVH 12572581', centerX, lineY + 9, { align: 'center' });
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(9);
   doc.setTextColor(...SKY_600);
   doc.text('Flight Express S.A.', centerX, lineY + 13, { align: 'center' });
 
@@ -158,7 +162,7 @@ export async function generateCertificatePdf(data: CertificateData): Promise<voi
 
 type LogoAsset = { dataUrl: string; width: number; height: number };
 
-const LOGO_MAX_DIMENSION = 700;
+const LOGO_MAX_DIMENSION = 900;
 
 function loadLogo(): Promise<LogoAsset | undefined> {
   return new Promise((resolve) => {
@@ -169,23 +173,30 @@ function loadLogo(): Promise<LogoAsset | undefined> {
       const width = Math.round(img.width * scale);
       const height = Math.round(img.height * scale);
       
-      const padding = 10;
-      const paddedWidth = width + padding * 2;
-      const paddedHeight = height + padding * 2;
-      
       const canvas = document.createElement('canvas');
-      canvas.width = paddedWidth;
-      canvas.height = paddedHeight;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         resolve(undefined);
         return;
       }
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, paddedWidth, paddedHeight);
-      ctx.drawImage(img, padding, padding, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Remove white/light background for transparent PNG output
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        if (r > 210 && g > 210 && b > 210) {
+          data[i + 3] = 0; // Transparent alpha
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
       
-      resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.9), width: paddedWidth, height: paddedHeight });
+      resolve({ dataUrl: canvas.toDataURL('image/png'), width, height });
     };
     img.onerror = () => resolve(undefined);
   });
@@ -196,7 +207,7 @@ function loadSignature(): Promise<LogoAsset | undefined> {
     const img = new Image();
     img.src = '/firmabugy.jpg';
     img.onload = () => {
-      const scale = Math.min(1, 600 / Math.max(img.width, img.height));
+      const scale = Math.min(1, 800 / Math.max(img.width, img.height));
       const width = Math.round(img.width * scale);
       const height = Math.round(img.height * scale);
       
@@ -210,7 +221,7 @@ function loadSignature(): Promise<LogoAsset | undefined> {
       }
       ctx.drawImage(img, 0, 0, width, height);
       
-      // Make white background transparent
+      // Remove white/light background for transparent PNG output
       const imgData = ctx.getImageData(0, 0, width, height);
       const data = imgData.data;
       for (let i = 0; i < data.length; i += 4) {
@@ -218,7 +229,7 @@ function loadSignature(): Promise<LogoAsset | undefined> {
         const g = data[i + 1];
         const b = data[i + 2];
         if (r > 190 && g > 190 && b > 190) {
-          data[i + 3] = 0; // Transparent
+          data[i + 3] = 0; // Transparent alpha
         }
       }
       ctx.putImageData(imgData, 0, 0);
