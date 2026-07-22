@@ -120,18 +120,20 @@ export async function generateCertificatePdf(data: CertificateData): Promise<voi
   doc.setFont('courier', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...SLATE_400);
-  doc.text(`Fecha de emisión: ${data.dateStr}   ·   N° ${data.certificateId}`, centerX, 168, { align: 'center' });
+  doc.text(`Fecha de emisión: ${data.dateStr}   ·   N° ${data.certificateId}`, centerX, 163, { align: 'center' });
 
-  // Signature Image and Text
-  const sigY = 171;
+  // Signature Line and Position
+  const lineY = 188;
+
+  // Render transparent signature 50% larger (sigHeight = 24mm)
   if (signatureImg) {
-    const sigHeight = 16;
+    const sigHeight = 24; // 50% larger than 16mm
     const sigAspect = signatureImg.width / signatureImg.height;
     const sigWidth = sigHeight * sigAspect;
-    doc.addImage(signatureImg.dataUrl, 'JPEG', centerX - sigWidth / 2, sigY, sigWidth, sigHeight);
+    const sigY = lineY - sigHeight + 2; // Overlaps line slightly
+    doc.addImage(signatureImg.dataUrl, 'PNG', centerX - sigWidth / 2, sigY, sigWidth, sigHeight);
   }
 
-  const lineY = 188;
   doc.setDrawColor(...SLATE_600);
   doc.setLineWidth(0.3);
   doc.line(centerX - 35, lineY, centerX + 35, lineY);
@@ -194,7 +196,7 @@ function loadSignature(): Promise<LogoAsset | undefined> {
     const img = new Image();
     img.src = '/firmabugy.jpg';
     img.onload = () => {
-      const scale = Math.min(1, 400 / Math.max(img.width, img.height));
+      const scale = Math.min(1, 600 / Math.max(img.width, img.height));
       const width = Math.round(img.width * scale);
       const height = Math.round(img.height * scale);
       
@@ -208,7 +210,20 @@ function loadSignature(): Promise<LogoAsset | undefined> {
       }
       ctx.drawImage(img, 0, 0, width, height);
       
-      resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.9), width, height });
+      // Make white background transparent
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        if (r > 190 && g > 190 && b > 190) {
+          data[i + 3] = 0; // Transparent
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+      
+      resolve({ dataUrl: canvas.toDataURL('image/png'), width, height });
     };
     img.onerror = () => resolve(undefined);
   });
