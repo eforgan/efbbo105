@@ -57,3 +57,65 @@ graph TD
 | **Pérdida del Paciente durante Evacuación** | **3A (Inaceptable)** | • Balsa 6 pax a cargo de Médico<br>• Chaleco adaptado a paciente<br>• Arnés de camilla 4 pts | **2B (Tolerable*)** |
 | **Ingreso Inadvertido en IIMC / Niebla Marina** | **4A (Inaceptable)** | • VFR Diurno Exclusivo<br>• Límite Visibilidad 5 km<br>• Radioaltímetro Activo | **1A (Aceptable)** |
 | **Accidente en Helideck durante Hot Loading** | **3B (Tolerable*)** | • Helideck Octogonal 22.2m<br>• Sector de aproximación 10:00-02:00<br>• Señalización HLO y no-izaje | **1C (Aceptable)** |
+
+---
+
+## OF9.3 Estudio SMS Extendido: Modelo de Queso Suizo y Diagrama Bow-Tie
+
+### OF9.3.1 Modelo de Queso Suizo de James Reason (Swiss Cheese Model)
+En ausencia de flotadores de emergencia fijos en el fuselaje, la seguridad del vuelo HEMS offshore sobre el agua descansa sobre 5 capas defensivas continuas. Cada capa actúa como una barrera que previene que los agujeros del sistema se alineen:
+
+1. **Capa 1 — Aeronavegabilidad y Mantenimiento:** Inspecciones estrictas bajo RAAC 135 y mantenimiento preventivo de los turbomotores Allison 250-C20B y transmisión del BO105.
+2. **Capa 2 — Mitigación Geográfica y Exposición:** Distancia máxima de costa $< 8\text{ km}$ y tiempo acumulado de sobrevuelo overwater $< 5\text{ minutos}$ totales (ida y vuelta).
+3. **Capa 3 — Mitigación Operativa y Entrenamiento:** Reglas VFR Diurnas exclusivas, árbol Go/No-Go y certificación HUET presencial obligatoria para los 4 ocupantes.
+4. **Capa 4 — Equipamiento de Supervivencia Individual (PPE):** Traje antiexposición *Dry Suit*, chaleco salvavidas de activación manual, *Air Pocket Plus (EBS)* y baliza *PLB 406 MHz*.
+5. **Capa 5 — Plataforma Colectiva de Supervivencia:** Balsa salvavidas inflable de 6 personas estibada a cargo del Médico Aeroevacuador, amarrada mediante *Painter Line*.
+
+### OF9.3.2 Modelo Bow-Tie Completo para Ditching sin Flotadores
+
+```mermaid
+graph LR
+    subgraph AMENAZAS
+        T1[Falla de Motor / Transmisión]
+        T2[Advección Repentina de Niebla]
+        T3[Ilusión de Agua Calma]
+    end
+
+    subgraph BARRERAS PREVENTIVAS
+        P1[Programa Mantenimiento RAAC 135]
+        P2[Tiempo Overwater < 5 min]
+        P3[Hot Loading en Helideck 22.2m]
+    end
+
+    subgraph EVENTO TOPICO
+        TE[AMARAJE FORZOSO / DITCHING EN AGUA]
+    end
+
+    subgraph BARRERAS MITIGADORAS
+        M1[Air Pocket Plus EBS Inserción Previa]
+        M2[Traje Seco Dry Suit Aislante]
+        M3[Egreso HUET por Mano de Referencia]
+        M4[Despliegue Balsa 6 pax con Painter Line]
+        M5[Baliza PLB 406 MHz Cospas-Sarsat]
+    end
+
+    subgraph CONSECUENCIAS
+        C1[Capsize Inminente en < 5 seg]
+        C2[Inmersión Fría Controlada]
+        C3[SUPERVIVENCIA Y RESCATE SAR EXITOSO]
+    end
+
+    T1 --> P1 --> TE
+    T2 --> P2 --> TE
+    T3 --> P3 --> TE
+
+    TE --> M1 --> C1
+    TE --> M2 --> C2
+    TE --> M3 --> C3
+    TE --> M4 --> C3
+    TE --> M5 --> C3
+
+    style TE fill:#e74c3c,color:#fff
+    style C3 fill:#27ae60,color:#fff
+```
+

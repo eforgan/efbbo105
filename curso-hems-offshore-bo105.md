@@ -140,9 +140,71 @@ graph TD
 
 ---
 
-## Módulo 9: SMS (Safety Management System), Matriz OACI y Lista Go/No-Go
+## Módulo 9: SMS (Safety Management System), Matriz OACI y Estudio Extendido
 
-* Verificación Go/No-Go con restricción de no-izaje, matriz OACI 5x5 y modelo Bow-Tie para ditching.
+### 9.1 Lista de Chequeo Mandatoria Go / No-Go HEMS Offshore
+* Verificación de 6 condiciones críticas obligatorias (Visibilidad VFR Diurna > 5 km, Distancia a costa < 8 km, Tiempo overwater < 5 min, Aterrizaje en Helideck + Hot Loading sin izaje, Certificación HUET y PPE completo, Green Deck en DLV Seminole).
+
+### 9.2 Matriz de Tolerabilidad de Riesgos OACI (Doc 9859)
+* Evaluación de severidad y probabilidad: Falla técnica overwater, ahogamiento e hipotermia tras ditching, pérdida de paciente, ingreso en IIMC y accidente en helideck.
+
+### 9.3 Estudio SMS Extendido: Modelo de Queso Suizo y Diagrama Bow-Tie
+
+#### 9.3.1 Modelo de Queso Suizo de James Reason (Swiss Cheese Model)
+La seguridad operacional sobre el agua sin flotadores fijos descansa en 5 capas defensivas continuas:
+1. **Capa 1 (Mantenimiento e Aeronavegabilidad):** Mantenimiento preventivo riguroso de los motores Allison 250-C20B y transmisión.
+2. **Capa 2 (Mitigación Geográfica y Exposición):** Restricción a distancias $< 8\text{ km}$ de costa y tiempo overwater acumulado $< 5\text{ minutos}$ totales.
+3. **Capa 3 (Mitigación Operativa y Entrenamiento):** Reglas VFR diurnas exclusivas, árbol Go/No-Go y certificación HUET obligatoria.
+4. **Capa 4 (Equipamiento de Supervivencia Individual PPE):** Traje antiexposición Dry Suit, chaleco salvavidas inflable manual, Air Pocket Plus (EBS) y PLB 406 MHz.
+5. **Capa 5 (Plataforma Colectiva de Supervivencia):** Balsa salvavidas inflable de 6 personas en cabina posterior bajo responsabilidad del Médico Aeroevacuador.
+
+#### 9.3.2 Modelo Bow-Tie Completo para el Evento Tópico "Ditching sin Flotadores"
+
+```mermaid
+graph LR
+    subgraph AMENAZAS
+        T1[Falla Técnica Motor/Transmisión]
+        T2[Advección de Niebla Marina]
+        T3[Ilusión de Agua Calma / Glassy Water]
+    end
+
+    subgraph BARRERAS PREVENTIVAS
+        P1[Mantenimiento RAAC 135]
+        P2[Exposición Overwater < 5 min]
+        P3[Aterrizaje Helideck + Hot Loading]
+    end
+
+    subgraph EVENTO TOPICO
+        TE[AMARAJE FORZOSO / DITCHING EN AGUA]
+    end
+
+    subgraph BARRERAS MITIGADORAS
+        M1[Air Pocket Plus EBS pre-impacto]
+        M2[Traje Seco Dry Suit]
+        M3[Egreso HUET por Mano de Referencia]
+        M4[Balsa 6 pax con Painter Line]
+        M5[PLB 406 MHz Satelital]
+    end
+
+    subgraph CONSECUENCIAS
+        C1[Capsize en < 5 seg]
+        C2[Inmersión Fría Controlada]
+        C3[SUPERVIVENCIA Y RESCATE SAR EXITOSO]
+    end
+
+    T1 --> P1 --> TE
+    T2 --> P2 --> TE
+    T3 --> P3 --> TE
+
+    TE --> M1 --> C1
+    TE --> M2 --> C2
+    TE --> M3 --> C3
+    TE --> M4 --> C3
+    TE --> M5 --> C3
+
+    style TE fill:#e74c3c,color:#fff
+    style C3 fill:#27ae60,color:#fff
+```
 
 ---
 

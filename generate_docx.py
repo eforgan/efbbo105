@@ -463,6 +463,49 @@ def create_course_docx(filename):
     ]
     create_custom_table(doc, [1.8, 1.0, 2.7, 1.0], risk_headers, risk_data)
 
+    add_h2("9.3 Estudio SMS Extendido: Modelo de Queso Suizo y Diagrama Bow-Tie")
+    add_p("El Sistema de Gestión de la Seguridad Operacional (SMS - OACI Doc 9859) analiza la operación HEMS offshore sin flotadores fijos fundamentándose en el principio de defensas profundas encadenadas. Dado que no existe una mitigación de diseño estructural en el fuselaje (flotadores), la seguridad se sostiene en la solidez de las barreras organizacionales, operativas y de supervivencia individual.")
+
+    add_h3("9.3.1 Modelo de Queso Suizo de James Reason (Swiss Cheese Model)")
+    add_p("Cada capa defensiva representa una rebanada de queso, y las vulnerabilidades latentes representan los agujeros. Una catástrofe solo ocurre si los agujeros de todas las capas se alinean simultáneamente. En nuestro protocolo, las 5 capas defensivas son:")
+    add_bullet("Programa estricto de mantenimiento preventivo del bimotor Allison 250-C20B y sistema de transmisión.", "Capa 1 (Mantenimiento e Aeronavegabilidad): ")
+    add_bullet("Operación a menos de 8 km de costa con un tiempo acumulado overwater inferior a 5 minutos totales.", "Capa 2 (Mitigación Geográfica y Exposición): ")
+    add_bullet("Reglas VFR diurnas exclusivas, árbol de decisión Go/No-Go y certificación HUET obligatoria.", "Capa 3 (Mitigación Operativa y Entrenamiento): ")
+    add_bullet("Traje antiexposición Dry Suit, chaleco salvavidas inflable manual, Air Pocket Plus (EBS) y PLB 406 MHz.", "Capa 4 (Equipamiento de Supervivencia Individual PPE): ")
+    add_bullet("Balsa salvavidas inflable de 6 personas en cabina posterior bajo responsabilidad exclusiva del Médico Aeroevacuador.", "Capa 5 (Plataforma Colectiva de Supervivencia): ")
+
+    add_h3("9.3.2 Modelo Bow-Tie Completo para Ditching sin Flotadores")
+    add_p("El modelo visual Bow-Tie estructura las amenazas previas al evento central (lado izquierdo) y las mitigaciones posteriores al impacto (lado derecho):")
+
+    add_p("Amenazas Previas al Evento:", bold_prefix="1. AMENAZAS (THREATS): ")
+    add_bullet("Falla técnica unimotor o bimotor / Falla de transmisión principal.")
+    add_bullet("Deterioro meteorológico repentino / Niebla de advección marina.")
+    add_bullet("Desorientación espacial por Ilusión de Agua Calma (Glassy Water Illusion).")
+    add_bullet("Turbulencia severa o viento cruzado en el Helideck del buque.")
+
+    add_p("Barreras de Prevención (Lado Izquierdo del Bow-Tie):", bold_prefix="2. BARRERAS PREVENTIVAS (PREVENTIVE CONTROLS): ")
+    add_bullet("Inspecciones pre-vuelo y mantenimiento bajo normas RAAC Parte 135.")
+    add_bullet("Cumplimiento estricto del árbol Go/No-Go (Verificación de las 6 condiciones).")
+    add_bullet("Límite de exposición sobre mar inferior a 5 minutos totales.")
+    add_bullet("Monitoreo cruzado del radioaltímetro y briefing de aproximación VFR.")
+    add_bullet("Operación de transferencia en helideck de 22.2 m x 22.2 m con Hot Loading (Sin Izaje).")
+
+    add_p("Amaraje Forzoso (Ditching) del Helicóptero sin Flotadores en Agua.", bold_prefix="3. EVENTO TÓPICO (TOP EVENT): ")
+
+    add_p("Barreras de Recuperación y Mitigación (Lado Derecho del Bow-Tie):", bold_prefix="4. BARRERAS MITIGADORAS (MITIGATION CONTROLS): ")
+    add_bullet("Autorrotación de precisión volada a 65 KIAS con colectivo máximo tras el toque.")
+    add_bullet("Inserción del sistema Air Pocket Plus (EBS) antes del impacto (otorga 45-60 s de aire subacuático).")
+    add_bullet("Traje antiexposición Dry Suit que previene el choque térmico y la hipotermia en agua a 10°C.")
+    add_bullet("Egreso subacuático HUET guiado por mano de referencia en marco de puerta/ventana.")
+    add_bullet("Inflado del chaleco salvavidas manual ÚNICAMENTE al salir de la cabina.")
+    add_bullet("Extracción y despliegue exterior de la Balsa de 6 pax por el Médico mediante la Painter Line.")
+    add_bullet("Activación de la baliza PLB 406 MHz para localización por satélites Cospas-Sarsat y homing 121.5 MHz.")
+
+    add_p("Consecuencias Finales Mitigadas:", bold_prefix="5. CONSECUENCIAS (CONSEQUENCES): ")
+    add_bullet("Vuelco e inversión del fuselaje (Capsize en < 5 s) y hundimiento de la celda de la aeronave.")
+    add_bullet("Supervivencia colectiva en balsa inflable de 6 pax.")
+    add_bullet("Rescate SAR exitoso coordinado por Prefectura Naval Argentina y Medios Costeros.")
+
     # --- MÓDULO 10 ---
     add_h1("MÓDULO 10: Syllabus de Evaluación y Cuestionario Teórico Extenso")
     add_h2("10.1 Cuestionario de Evaluación Teórica para Pilotos (25 Preguntas)")
@@ -646,16 +689,22 @@ def create_course_docx(filename):
 
     # Save Document
     filename_clean = r"c:\Users\SERVER-MADERO\Desktop\Output\cursoadptacionbo105bolkow\bo105-course\Curso_HEMS_Offshore_BO105_CBS4_Examen_Sin_Respuestas.docx"
-    doc.save(filename_clean)
-    print(f"Documento sin respuestas generado exitosamente en: {filename_clean}")
-    
     try:
-        doc.save(filename)
-        print(f"Documento generado exitosamente en: {filename}")
+        doc.save(filename_clean)
+        print(f"Documento sin respuestas generado exitosamente en: {filename_clean}")
     except PermissionError:
-        alt_filename = filename.replace(".docx", "_v3.docx")
-        doc.save(alt_filename)
-        print(f"El archivo original estaba abierto en Word. Documento generado exitosamente en: {alt_filename}")
+        alt_clean = filename_clean.replace(".docx", "_v2.docx")
+        doc.save(alt_clean)
+        print(f"El archivo sin respuestas estaba abierto en Word. Generado en: {alt_clean}")
+    
+    # Save Main Document
+    for v in range(4, 10):
+        try:
+            doc.save(filename)
+            print(f"Documento generado exitosamente en: {filename}")
+            break
+        except PermissionError:
+            filename = r"c:\Users\SERVER-MADERO\Desktop\Output\cursoadptacionbo105bolkow\bo105-course\Curso_HEMS_Offshore_BO105_CBS4_v{}.docx".format(v)
 
 if __name__ == "__main__":
     out_path = r"c:\Users\SERVER-MADERO\Desktop\Output\cursoadptacionbo105bolkow\bo105-course\Curso_HEMS_Offshore_BO105_CBS4.docx"
