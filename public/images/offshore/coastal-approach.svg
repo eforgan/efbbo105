@@ -1,0 +1,42 @@
+<svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif">
+  <rect width="800" height="460" fill="#ffffff"/>
+  <text x="400" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#0f172a">Aproximación Costera — Vista en Planta (Conceptual)</text>
+  <text x="400" y="52" text-anchor="middle" font-size="13" fill="#64748b">Mantener superficie alternativa a la vista el mayor tiempo posible</text>
+
+  <!-- Sea -->
+  <rect x="0" y="70" width="800" height="300" fill="#7dd3fc"/>
+  <!-- Coastline / beach -->
+  <path d="M 0,300 Q 200,260 400,290 T 800,270 L 800,370 L 0,370 Z" fill="#fde68a"/>
+  <!-- Land -->
+  <rect x="0" y="370" width="800" height="90" fill="#bbf7d0"/>
+
+  <text x="700" y="110" font-size="13" fill="#0c4a6e" font-weight="bold">MAR ABIERTO</text>
+  <text x="80" y="420" font-size="13" fill="#14532d" font-weight="bold">TIERRA</text>
+  <text x="330" y="285" font-size="12" fill="#78350f" font-weight="bold">PLAYA</text>
+
+  <!-- Flight path -->
+  <path d="M 680,120 C 520,150 420,220 330,270" fill="none" stroke="#dc2626" stroke-width="3" stroke-dasharray="10,6"/>
+  <circle cx="680" cy="120" r="6" fill="#dc2626"/>
+  <text x="680" y="100" text-anchor="middle" font-size="12" fill="#7f1d1d">Inicio aproximación</text>
+  <path d="M 330,270 L 300,290" stroke="#dc2626" stroke-width="3" marker-end="url(#arrRed2)"/>
+  <defs>
+    <marker id="arrRed2" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#dc2626"/></marker>
+    <marker id="arrBlueWind" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#0369a1"/></marker>
+  </defs>
+
+  <!-- landing zone marker -->
+  <circle cx="300" cy="292" r="10" fill="none" stroke="#16a34a" stroke-width="3"/>
+  <circle cx="300" cy="292" r="3" fill="#16a34a"/>
+  <text x="300" y="320" text-anchor="middle" font-size="12" fill="#14532d" font-weight="bold">Zona de aterrizaje</text>
+
+  <!-- alternate surface marker -->
+  <circle cx="480" cy="230" r="9" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="3,2"/>
+  <text x="480" y="215" text-anchor="middle" font-size="11" fill="#1e3a8a">Superficie alternativa</text>
+  <text x="480" y="255" text-anchor="middle" font-size="11" fill="#1e3a8a">visible durante el tramo</text>
+
+  <!-- wind arrow -->
+  <path d="M 620,180 L 680,160" stroke="#0369a1" stroke-width="3" marker-end="url(#arrBlueWind)"/>
+  <text x="660" y="145" text-anchor="middle" font-size="12" fill="#0369a1" font-weight="bold">Brisa marina</text>
+
+  <text x="400" y="440" text-anchor="middle" font-size="12" fill="#64748b">Evaluar la curva H-V ajustada (Módulo OF2) durante todo el tramo sobre agua abierta.</text>
+</svg>

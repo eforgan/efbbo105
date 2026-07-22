@@ -1,0 +1,45 @@
+<svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif">
+  <rect width="800" height="460" fill="#ffffff"/>
+  <text x="400" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#0f172a">Equipo Individual Estándar de Tripulación</text>
+  <text x="400" y="52" text-anchor="middle" font-size="13" fill="#64748b">Esquema conceptual — configuración de esta operación (sin sistema de flotación de aeronave)</text>
+
+  <!-- Simple crew figure silhouette -->
+  <g transform="translate(300,90)">
+    <circle cx="100" cy="30" r="26" fill="#cbd5e1"/>
+    <!-- suit body -->
+    <path d="M 55,60 Q 100,45 145,60 L 155,230 Q 100,250 45,230 Z" fill="#fb923c" opacity="0.85"/>
+    <!-- vest overlay -->
+    <path d="M 65,70 Q 100,60 135,70 L 140,150 Q 100,165 60,150 Z" fill="#facc15" stroke="#a16207" stroke-width="2"/>
+    <!-- legs -->
+    <rect x="65" y="230" width="30" height="90" fill="#334155"/>
+    <rect x="105" y="230" width="30" height="90" fill="#334155"/>
+    <!-- PLB on shoulder strap -->
+    <rect x="128" y="95" width="20" height="30" rx="3" fill="#0f172a"/>
+  </g>
+
+  <!-- Callout 1: anti-exposure suit -->
+  <line x1="345" y1="150" x2="180" y2="150" stroke="#475569" stroke-width="1.5"/>
+  <circle cx="345" cy="150" r="4" fill="#475569"/>
+  <rect x="20" y="122" width="160" height="56" rx="6" fill="#fff7ed" stroke="#fb923c"/>
+  <text x="100" y="142" text-anchor="middle" font-size="12" font-weight="bold" fill="#7c2d12">Traje anti-exposición</text>
+  <text x="100" y="158" text-anchor="middle" font-size="10" fill="#7c2d12">Protección térmica parcial</text>
+  <text x="100" y="172" text-anchor="middle" font-size="10" fill="#7c2d12">(no es traje de inmersión estanco)</text>
+
+  <!-- Callout 2: inflatable vest -->
+  <line x1="440" y1="180" x2="620" y2="180" stroke="#475569" stroke-width="1.5"/>
+  <circle cx="440" cy="180" r="4" fill="#475569"/>
+  <rect x="622" y="150" width="170" height="66" rx="6" fill="#fefce8" stroke="#ca8a04"/>
+  <text x="707" y="170" text-anchor="middle" font-size="12" font-weight="bold" fill="#713f12">Chaleco salvavidas inflable</text>
+  <text x="707" y="186" text-anchor="middle" font-size="10" fill="#713f12">Colocado y asegurado — SIN inflar</text>
+  <text x="707" y="200" text-anchor="middle" font-size="10" fill="#713f12">en cabina. Inflar recién afuera.</text>
+
+  <!-- Callout 3: PLB -->
+  <line x1="428" y1="185" x2="620" y2="300" stroke="#475569" stroke-width="1.5"/>
+  <circle cx="428" cy="185" r="4" fill="#475569"/>
+  <rect x="622" y="272" width="170" height="56" rx="6" fill="#f1f5f9" stroke="#334155"/>
+  <text x="707" y="292" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f172a">Radiobaliza personal (PLB)</text>
+  <text x="707" y="308" text-anchor="middle" font-size="10" fill="#0f172a">Equipo estándar por tripulante</text>
+  <text x="707" y="320" text-anchor="middle" font-size="10" fill="#0f172a">(no depende del ELT de la aeronave)</text>
+
+  <text x="400" y="440" text-anchor="middle" font-size="12" fill="#64748b">Ver Módulo OF3 para el detalle de uso, verificación y mantenimiento de cada elemento.</text>
+</svg>
