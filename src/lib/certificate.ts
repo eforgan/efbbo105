@@ -32,6 +32,7 @@ export async function generateCertificatePdf(data: CertificateData): Promise<voi
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
   const logoImg = await loadLogo();
+  const signatureImg = await loadSignature();
   const centerX = 148.5;
 
   // Full-page background
@@ -47,68 +48,68 @@ export async function generateCertificatePdf(data: CertificateData): Promise<voi
   doc.setLineWidth(0.2);
   doc.rect(margin + 2.5, margin + 2.5, 297 - (margin + 2.5) * 2, 210 - (margin + 2.5) * 2);
 
-  let y = 15;
+  let y = 14;
 
   // Logo, large and centered at the top
   if (logoImg) {
-    const imgHeight = 46;
+    const imgHeight = 40;
     const aspectRatio = logoImg.width / logoImg.height;
     const imgWidth = imgHeight * aspectRatio;
-    doc.addImage(logoImg.dataUrl, 'PNG', centerX - imgWidth / 2, y, imgWidth, imgHeight);
+    doc.addImage(logoImg.dataUrl, 'JPEG', centerX - imgWidth / 2, y, imgWidth, imgHeight);
     y += imgHeight;
   }
 
-  y += 8;
+  y += 6;
   doc.setDrawColor(...SKY_500);
   doc.setLineWidth(0.6);
   doc.line(centerX - 22, y, centerX + 22, y);
 
-  y += 14;
+  y += 12;
   doc.setFont('times', 'bold');
-  doc.setFontSize(30);
+  doc.setFontSize(28);
   doc.setTextColor(...SLATE_900);
   doc.text('CERTIFICADO DE APROBACIÓN', centerX, y, { align: 'center' });
 
-  y += 12;
+  y += 10;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   doc.setTextColor(...SLATE_600);
   doc.text('Se certifica que', centerX, y, { align: 'center' });
 
-  y += 15;
+  y += 13;
   doc.setFont('times', 'bold');
-  doc.setFontSize(28);
+  doc.setFontSize(26);
   doc.setTextColor(...SKY_600);
   doc.text(data.pilotName.toUpperCase(), centerX, y, { align: 'center' });
 
   if (data.licenseType && data.licenseNumber) {
-    y += 8;
+    y += 7;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...SLATE_600);
     doc.text(`Lic. ${data.licenseType} N° ${data.licenseNumber}`, centerX, y, { align: 'center' });
   }
 
-  y += 13;
+  y += 11;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(...SLATE_600);
   doc.text('ha completado y aprobado exitosamente el', centerX, y, { align: 'center' });
 
-  y += 8;
+  y += 7;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   doc.setTextColor(...SLATE_900);
   doc.text(data.courseTitle, centerX, y, { align: 'center' });
 
-  y += 10;
+  y += 8;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setTextColor(...SLATE_600);
   doc.text(data.achievementLine, centerX, y, { align: 'center' });
 
   if (data.footerNote) {
-    y += 10;
+    y += 7;
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(8);
     doc.setTextColor(...SLATE_400);
@@ -119,23 +120,42 @@ export async function generateCertificatePdf(data: CertificateData): Promise<voi
   doc.setFont('courier', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...SLATE_400);
-  doc.text(`Fecha de emisión: ${data.dateStr}   ·   N° ${data.certificateId}`, centerX, 180, { align: 'center' });
+  doc.text(`Fecha de emisión: ${data.dateStr}   ·   N° ${data.certificateId}`, centerX, 168, { align: 'center' });
 
-  doc.setDrawColor(...SLATE_400);
+  // Signature Image and Text
+  const sigY = 171;
+  if (signatureImg) {
+    const sigHeight = 16;
+    const sigAspect = signatureImg.width / signatureImg.height;
+    const sigWidth = sigHeight * sigAspect;
+    doc.addImage(signatureImg.dataUrl, 'JPEG', centerX - sigWidth / 2, sigY, sigWidth, sigHeight);
+  }
+
+  const lineY = 188;
+  doc.setDrawColor(...SLATE_600);
   doc.setLineWidth(0.3);
-  doc.line(centerX - 40, 191, centerX + 40, 191);
+  doc.line(centerX - 35, lineY, centerX + 35, lineY);
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('MAS', centerX, 197, { align: 'center' });
+  doc.setFontSize(10);
+  doc.setTextColor(...SLATE_900);
+  doc.text('Eduardo J Forgan', centerX, lineY + 5, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...SLATE_600);
+  doc.text('IVH 12572581', centerX, lineY + 9, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...SKY_600);
+  doc.text('Flight Express S.A.', centerX, lineY + 13, { align: 'center' });
 
   doc.save(`${data.fileNameBase}_${data.pilotName.replace(/\s+/g, '_')}.pdf`);
 }
 
 type LogoAsset = { dataUrl: string; width: number; height: number };
 
-// The source PNG is a large, high-resolution export (2816x1536px, ~5MB) — embedding it
-// directly in the PDF at full resolution bloats every certificate to ~12MB. Downscaling
-// through a canvas to a print-adequate size keeps quality while producing a normal-sized PDF.
 const LOGO_MAX_DIMENSION = 700;
 
 function loadLogo(): Promise<LogoAsset | undefined> {
@@ -164,6 +184,31 @@ function loadLogo(): Promise<LogoAsset | undefined> {
       ctx.drawImage(img, padding, padding, width, height);
       
       resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.9), width: paddedWidth, height: paddedHeight });
+    };
+    img.onerror = () => resolve(undefined);
+  });
+}
+
+function loadSignature(): Promise<LogoAsset | undefined> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = '/firmabugy.jpg';
+    img.onload = () => {
+      const scale = Math.min(1, 400 / Math.max(img.width, img.height));
+      const width = Math.round(img.width * scale);
+      const height = Math.round(img.height * scale);
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(undefined);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.9), width, height });
     };
     img.onerror = () => resolve(undefined);
   });
