@@ -162,34 +162,34 @@ La seguridad operacional sobre el agua sin flotadores fijos descansa en 5 capas 
 
 ```mermaid
 graph LR
-    subgraph AMENAZAS
-        T1[Falla Técnica Motor/Transmisión]
-        T2[Advección de Niebla Marina]
-        T3[Ilusión de Agua Calma / Glassy Water]
+    subgraph AMENAZAS["AMENAZAS IDENTIFICADAS"]
+        T1["Falla Tecnica de Motor o Transmision"]
+        T2["Adveccion Repentina de Niebla Marina"]
+        T3["Ilusion de Agua Calma (Glassy Water)"]
     end
 
-    subgraph BARRERAS PREVENTIVAS
-        P1[Mantenimiento RAAC 135]
-        P2[Exposición Overwater < 5 min]
-        P3[Aterrizaje Helideck + Hot Loading]
+    subgraph BARRERAS_PREVENTIVAS["BARRERAS PREVENTIVAS"]
+        P1["Programa Mantenimiento RAAC 135"]
+        P2["Exposicion Overwater menor a 5 min"]
+        P3["Hot Loading en Helideck 22.2m (Sin Izaje)"]
     end
 
-    subgraph EVENTO TOPICO
-        TE[AMARAJE FORZOSO / DITCHING EN AGUA]
+    subgraph EVENTO_TOPICO["EVENTO TOPICO CENTRAL"]
+        TE["AMARAJE FORZOSO - DITCHING EN AGUA"]
     end
 
-    subgraph BARRERAS MITIGADORAS
-        M1[Air Pocket Plus EBS pre-impacto]
-        M2[Traje Seco Dry Suit]
-        M3[Egreso HUET por Mano de Referencia]
-        M4[Balsa 6 pax con Painter Line]
-        M5[PLB 406 MHz Satelital]
+    subgraph BARRERAS_MITIGADORAS["BARRERAS MITIGADORAS"]
+        M1["Air Pocket Plus EBS Insercion Previa"]
+        M2["Traje Seco Dry Suit Aislante 10C"]
+        M3["Egreso HUET por Mano de Referencia"]
+        M4["Despliegue Balsa 6 pax con Painter Line"]
+        M5["Baliza PLB 406 MHz Cospas-Sarsat"]
     end
 
-    subgraph CONSECUENCIAS
-        C1[Capsize en < 5 seg]
-        C2[Inmersión Fría Controlada]
-        C3[SUPERVIVENCIA Y RESCATE SAR EXITOSO]
+    subgraph CONSECUENCIAS["CONSECUENCIAS MITIGADAS"]
+        C1["Capsize Inminente en menos de 5 seg"]
+        C2["Inmersion Fria Controlada"]
+        C3["SUPERVIVENCIA Y RESCATE SAR EXITOSO"]
     end
 
     T1 --> P1 --> TE
