@@ -16,7 +16,7 @@ Este protocolo establece los lineamientos de seguridad, equipamiento y gestión 
 
 ### Requisitos para la Tripulación (Pilotos y Médico)
 * **Traje Antiexposición (Dry Suit):** Estanco y térmicamente aislado para prevenir la hipotermia en aguas del Golfo San Matías (10°C - 14°C).
-* **Chaleco Salvavidas Inflable MANUAL:** Doble cámara de activación strictly manual (prohibido autoinflable intra-cabina).
+* **Chaleco Salvavidas Inflable MANUAL:** Doble cámara de activación estrictamente manual (prohibido autoinflable intra-cabina).
 * **Air Pocket Plus (EBS):** Rebreather de emergencia subacuática que otorga 45 a 60 segundos de respiración autónoma.
 * **PLB 406 MHz / 121.5 MHz:** Radiobaliza de localización personal fijada al chaleco salvavidas.
 
@@ -45,23 +45,23 @@ El diagrama Bow-Tie visualiza el evento central no deseado ("Amaraje Forzoso / D
 
 ```mermaid
 graph LR
-    subgraph AMENAZAS["AMENAZAS IDENTIFICADAS"]
+    subgraph AMENAZAS ["AMENAZAS IDENTIFICADAS"]
         T1["Falla Tecnica de Motor o Transmision"]
         T2["Adveccion Repentina de Niebla Marina"]
         T3["Ilusion de Agua Calma (Glassy Water)"]
     end
 
-    subgraph BARRERAS_PREVENTIVAS["BARRERAS PREVENTIVAS"]
+    subgraph BARRERAS_PREVENTIVAS ["BARRERAS PREVENTIVAS"]
         P1["Programa Mantenimiento RAAC 135"]
         P2["Exposicion Overwater menor a 5 min"]
         P3["Hot Loading en Helideck 22.2m (Sin Izaje)"]
     end
 
-    subgraph EVENTO_TOPICO["EVENTO TOPICO CENTRAL"]
+    subgraph EVENTO_TOPICO ["EVENTO TOPICO CENTRAL"]
         TE["AMARAJE FORZOSO - DITCHING EN AGUA"]
     end
 
-    subgraph BARRERAS_MITIGADORAS["BARRERAS MITIGADORAS"]
+    subgraph BARRERAS_MITIGADORAS ["BARRERAS MITIGADORAS"]
         M1["Air Pocket Plus EBS Insercion Previa"]
         M2["Traje Seco Dry Suit Aislante 10C"]
         M3["Egreso HUET por Mano de Referencia"]
@@ -69,7 +69,7 @@ graph LR
         M5["Baliza PLB 406 MHz Cospas-Sarsat"]
     end
 
-    subgraph CONSECUENCIAS["CONSECUENCIAS MITIGADAS"]
+    subgraph CONSECUENCIAS ["CONSECUENCIAS MITIGADAS"]
         C1["Capsize Inminente en menos de 5 seg"]
         C2["Inmersion Fria Controlada"]
         C3["SUPERVIVENCIA Y RESCATE SAR EXITOSO"]
