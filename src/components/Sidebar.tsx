@@ -1,216 +1,218 @@
-"use client";
+'use client';
 
-import { Link, usePathname } from '@/i18n/routing';
-import Image from 'next/image';
-import { 
-  BookOpen, 
-  Settings, 
-  Activity, 
-  TrendingUp, 
-  CheckSquare, 
-  AlertTriangle,
-  Menu,
-  X,
+import React from 'react';
+import {
   Scale,
-  Compass,
-  Flame,
-  Sun,
-  Moon,
-  Award,
-  Layers,
-  Bell,
-  Brain,
-  User,
+  Gauge,
+  AlertOctagon,
+  MapPin,
+  Fuel,
+  HeartPulse,
+  CheckSquare,
   ShieldAlert,
-  Wind,
-  LogIn,
-  LogOut,
-  Box,
-  Waves,
-  ClipboardCheck
+  CloudSun,
+  Moon,
+  Flame,
+  FileText,
+  Compass,
+  BookOpen,
+  Book,
+  FileCheck,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Activity
 } from 'lucide-react';
-import { useState } from 'react';
-import { useTheme } from 'next-themes';
-import { useAuth } from '@/context/AuthContext';
-import { useTranslations } from 'next-intl';
 
-const ADMIN_EMAILS = ['eforgan@gruppomodena.com', 'admin@bo105.com', 'piloto@test.com'];
+export type TabType =
+  | 'wb'
+  | 'perf'
+  | 'hvcurve'
+  | 'route'
+  | 'fuel'
+  | 'hems'
+  | 'checklists'
+  | 'risk'
+  | 'weather'
+  | 'nvg'
+  | 'oei'
+  | 'fplan'
+  | 'windsim'
+  | 'library'
+  | 'logbook'
+  | 'dispatch';
 
-export default function Sidebar() {
-  const t = useTranslations('Navigation');
-  const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const { user, logout } = useAuth();
-  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Piloto';
+interface SidebarProps {
+  activeTab: TabType;
+  setActiveTab: (t: TabType) => void;
+  isOpenMobile: boolean;
+  setIsOpenMobile: (open: boolean) => void;
+}
 
-  // Wait for mount to avoid hydration mismatch
-  if (typeof window !== 'undefined' && !mounted) {
-    setMounted(true);
-  }
-  
-  const isAdmin = user && user.email && ADMIN_EMAILS.includes(user.email);
+interface NavGroup {
+  groupName: string;
+  items: {
+    id: TabType;
+    label: string;
+    icon: React.ElementType;
+    badge?: string;
+  }[];
+}
 
-  const navItems = [
-    { name: t('dashboard'), href: '/dashboard', icon: User },
-    { name: t('course_modules'), href: '/', icon: BookOpen },
-    { name: 'Manual de Operación', href: '/manual', icon: Settings },
-    { name: t('checklists'), href: '/checklists', icon: CheckSquare },
-    { name: 'Peso y Balanceo', href: '/herramientas/peso-balanceo', icon: Activity },
-    { name: 'Performance', href: '/herramientas/performance', icon: TrendingUp },
-    { name: 'Curvas HV', href: '/herramientas/curvas-hv', icon: AlertTriangle },
-    { name: 'Sistemas Interactivos', href: '/sistemas', icon: Layers },
-    { name: t('emergency_simulator'), href: '/simulador-emergencias', icon: Bell },
-    { name: 'Flashcards', href: '/flashcards', icon: Brain },
-    { name: t('final_exam'), href: '/examen', icon: Award },
-    { name: 'Panel Admin', href: '/admin', icon: ShieldAlert, adminOnly: true },
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  setActiveTab,
+  isOpenMobile,
+  setIsOpenMobile,
+}) => {
+  const [isCollapsedDesktop, setIsCollapsedDesktop] = React.useState<boolean>(false);
+
+  const navGroups: NavGroup[] = [
+    {
+      groupName: 'CÁLCULO & RENDIMIENTO',
+      items: [
+        { id: 'wb', label: 'Peso & Balanceo', icon: Scale },
+        { id: 'perf', label: 'Performance HOGE/HIGE', icon: Gauge },
+        { id: 'hvcurve', label: 'Curva H-V Dead Man', icon: AlertOctagon },
+        { id: 'oei', label: 'Emergencia OEI Monomotor', icon: Flame, badge: 'Régimen' },
+      ],
+    },
+    {
+      groupName: 'NAVEGACIÓN & METEOROLOGÍA',
+      items: [
+        { id: 'route', label: 'Rutas Modena HEMS', icon: MapPin },
+        { id: 'fuel', label: 'Combustible & Autonomía', icon: Fuel },
+        { id: 'weather', label: 'METAR / TAF & Viento', icon: CloudSun },
+        { id: 'nvg', label: 'Visión Nocturna & NVG', icon: Moon, badge: 'ANAC' },
+        { id: 'windsim', label: 'Simulador Helipuerto', icon: Compass },
+      ],
+    },
+    {
+      groupName: 'OPERACIÓN HEMS & SEGURIDAD',
+      items: [
+        { id: 'hems', label: 'Oxígeno UTV/SAME', icon: HeartPulse },
+        { id: 'checklists', label: 'Listas QRH & Voz', icon: CheckSquare, badge: 'TTS Copilot' },
+        { id: 'risk', label: 'Matriz Riesgo SMS OACI', icon: ShieldAlert },
+      ],
+    },
+    {
+      groupName: 'DESPACHO & DOCUMENTACIÓN',
+      items: [
+        { id: 'fplan', label: 'Plan de Vuelo OACI EANA', icon: FileText, badge: 'FPL 1801' },
+        { id: 'library', label: 'Biblioteca ANAC & RFM', icon: BookOpen },
+        { id: 'logbook', label: 'Bitácora Digital', icon: Book },
+        { id: 'dispatch', label: 'Despacho PDF Oficial', icon: FileCheck },
+      ],
+    },
   ];
+
+  const handleSelect = (id: TabType) => {
+    setActiveTab(id);
+    setIsOpenMobile(false);
+  };
 
   return (
     <>
-      {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="p-2 rounded-md bg-white shadow-md text-slate-600 hover:text-slate-900 focus:outline-none"
-        >
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
-
-      {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        <div className="flex flex-col h-full">
-          <div className="flex flex-col items-center justify-center p-6 border-b border-slate-800 space-y-4">
-            <div className="bg-white p-[10px] rounded inline-block shadow-sm">
-              <Image src="/mas_logo.jpg" alt="MAS Logo" width={150} height={48} className="h-12 w-auto object-contain block" priority />
-            </div>
-            <h1 className="text-xl font-bold text-white tracking-wider">BO105 CBS4</h1>
-          </div>
-          
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {navItems.filter(item => !item.adminOnly || isAdmin).map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-              const Icon = item.icon;
-              
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive 
-                      ? 'bg-sky-600 text-white font-medium' 
-                      : 'hover:bg-slate-800 hover:text-white'
-                  }`}
-                >
-                  <Icon size={20} className={isActive ? 'text-sky-200' : 'text-slate-400'} />
-                  {item.name}
-                </Link>
-              );
-            })}
-            <div className="pt-4 mt-4 border-t border-slate-800">
-              <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Curso Offshore HEMS</p>
-              <Link href="/offshore" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <Waves className="mr-3 text-sky-400 group-hover:text-sky-300 transition-colors" size={20} />
-                <span className="font-medium">Módulos Offshore (&lt; 8 km)</span>
-              </Link>
-              <Link href="/offshore/simulador" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <Bell className="mr-3 text-rose-400 group-hover:text-rose-300 transition-colors" size={20} />
-                <span className="font-medium">Simulador Ditching/Offshore</span>
-              </Link>
-              <Link href="/offshore/evaluacion" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <ClipboardCheck className="mr-3 text-emerald-400 group-hover:text-emerald-300 transition-colors" size={20} />
-                <span className="font-medium">Evaluación PCR en Vuelo</span>
-              </Link>
-            </div>
-
-            <div className="pt-4 mt-4 border-t border-slate-800">
-              <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Herramientas de Vuelo</p>
-              <Link href="/herramientas/inspeccion-3d" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <Box className="mr-3 text-indigo-400 group-hover:text-indigo-300 transition-colors" size={20} />
-                <span className="font-medium">Inspección 3D</span>
-              </Link>
-              <Link href="/herramientas/peso-balanceo" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <Scale className="mr-3 text-sky-400 group-hover:text-sky-300 transition-colors" size={20} />
-                <span className="font-medium">Peso y Balanceo</span>
-              </Link>
-              <Link href="/herramientas/performance" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <Activity className="mr-3 text-emerald-400 group-hover:text-emerald-300 transition-colors" size={20} />
-                <span className="font-medium">Calculadora de Performance</span>
-              </Link>
-              <Link href="/herramientas/curvas-hv" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <Compass className="mr-3 text-rose-400 group-hover:text-rose-300 transition-colors" size={20} />
-                <span className="font-medium">Curvas H-V</span>
-              </Link>
-              <Link href="/herramientas/viento-cruzado" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <Wind className="mr-3 text-sky-400 group-hover:text-sky-300 transition-colors" size={20} />
-                <span className="font-medium">Viento Cruzado</span>
-              </Link>
-              <Link href="/herramientas/combustible" className="flex items-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-2 transition-colors group">
-                <Flame className="mr-3 text-orange-400 group-hover:text-orange-300 transition-colors" size={20} />
-                <span className="font-medium">Combustible y Alcance</span>
-              </Link>
-            </div>
-          </nav>
-          
-          <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center flex flex-col items-center gap-3">
-            {user ? (
-              <>
-                <div className="flex items-center gap-2 w-full px-2 py-2 rounded-lg bg-slate-800/60">
-                  <div className="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                    {displayName.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="text-sm font-semibold text-slate-200 truncate">{displayName}</p>
-                    {user.email && <p className="text-[10px] text-slate-500 truncate">{user.email}</p>}
-                  </div>
-                </div>
-                <button
-                  onClick={() => logout()}
-                  className="p-2 rounded-lg bg-rose-900/30 hover:bg-rose-900/50 text-rose-400 transition-colors flex items-center justify-center gap-2 w-full font-medium"
-                >
-                  <LogOut size={16} />
-                  Cerrar Sesión
-                </button>
-              </>
-            ) : (
-              <Link
-                href="/login"
-                onClick={() => setIsOpen(false)}
-                className="p-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition-colors flex items-center justify-center gap-2 w-full font-medium"
-              >
-                <LogIn size={16} />
-                Iniciar Sesión
-              </Link>
-            )}
-            
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center gap-2 w-full"
-            >
-              {mounted && theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              <span className="font-medium text-sm">{mounted && theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}</span>
-            </button>
-            <div className="mt-2 text-[10px] text-slate-600">
-              Curso de Adaptación<br/>
-              Eforgans Projects &copy; 2026
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Overlay for mobile */}
-      {isOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-slate-900/50 z-30"
-          onClick={() => setIsOpen(false)}
+      {/* Mobile Backdrop Overlay */}
+      {isOpenMobile && (
+        <div
+          onClick={() => setIsOpenMobile(false)}
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 lg:hidden transition-opacity"
         />
       )}
+
+      {/* Sidebar Drawer Container */}
+      <aside
+        className={`fixed lg:sticky top-0 left-0 z-50 h-screen bg-slate-900/95 border-r border-slate-800 transition-all duration-300 flex flex-col font-mono text-xs ${
+          isOpenMobile ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0'
+        } ${isCollapsedDesktop ? 'lg:w-20' : 'lg:w-72'}`}
+      >
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center space-x-2.5 overflow-hidden">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+              <Activity className="w-5 h-5 animate-pulse" />
+            </div>
+            {(!isCollapsedDesktop || isOpenMobile) && (
+              <div>
+                <span className="font-bold text-sm text-slate-100 block truncate">MODENA EFB</span>
+                <span className="text-[10px] text-cyan-400 block truncate">BO105 CBS-4</span>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Collapse Toggle Button */}
+          <button
+            onClick={() => setIsCollapsedDesktop(!isCollapsedDesktop)}
+            className="hidden lg:flex p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition cursor-pointer"
+            title={isCollapsedDesktop ? 'Expandir Menú' : 'Colapsar Menú'}
+          >
+            {isCollapsedDesktop ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+
+          {/* Mobile Close Button */}
+          <button
+            onClick={() => setIsOpenMobile(false)}
+            className="lg:hidden p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Navigation Items Scroll Area */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-5 scrollbar-none">
+          {navGroups.map((group, idx) => (
+            <div key={idx} className="space-y-1">
+              {(!isCollapsedDesktop || isOpenMobile) && (
+                <span className="text-[10px] font-bold text-slate-500 tracking-wider px-2 block uppercase">
+                  {group.groupName}
+                </span>
+              )}
+
+              <div className="space-y-1">
+                {group.items.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleSelect(item.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-lg shadow-cyan-500/10 font-bold'
+                          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                      }`}
+                      title={item.label}
+                    >
+                      <div className="flex items-center space-x-3 overflow-hidden">
+                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                        {(!isCollapsedDesktop || isOpenMobile) && (
+                          <span className="truncate text-xs">{item.label}</span>
+                        )}
+                      </div>
+
+                      {item.badge && (!isCollapsedDesktop || isOpenMobile) && (
+                        <span className="text-[9px] bg-cyan-950 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.5 rounded font-bold shrink-0">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-slate-800 text-[10px] text-slate-500 font-mono text-center">
+          {(!isCollapsedDesktop || isOpenMobile) ? (
+            <span>MODENA HEMS • REV 2026</span>
+          ) : (
+            <span>EFB</span>
+          )}
+        </div>
+      </aside>
     </>
   );
-}
+};

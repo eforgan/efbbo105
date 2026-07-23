@@ -20,9 +20,22 @@ vi.mock('recharts', () => {
 });
 
 describe('HVCurveComputer', () => {
-  it('identifies default state (low speed, mid height) as unsafe', () => {
+  it('identifies default state (80 KIAS, 200 ft) as safe', () => {
     render(<HVCurveComputer />);
-    // Default: speed 30, height 200 -> Upper avoid area
+    // Default: weight 2400, speed 80, height 200 -> outside the avoid envelope
+    expect(screen.getByText('Estado de Operación: OPERACIÓN SEGURA')).toBeInTheDocument();
+  });
+
+  it('identifies low speed and mid height as unsafe (main avoid area)', () => {
+    render(<HVCurveComputer />);
+
+    const sliders = screen.getAllByRole('slider');
+    const speedSlider = sliders[3];
+    const heightSlider = sliders[4];
+
+    fireEvent.change(speedSlider, { target: { value: '20' } });
+    fireEvent.change(heightSlider, { target: { value: '100' } });
+
     expect(screen.getByText('Estado de Operación: ÁREA A EVITAR (INSEGURA)')).toBeInTheDocument();
   });
 

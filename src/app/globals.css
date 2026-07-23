@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased min-h-screen selection:bg-cyan-500 selection:text-slate-950;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Responsive Touch inputs for Tablets and Phones */
+  input[type="range"] {
+    @apply cursor-pointer touch-none;
+    height: 1.5rem;
+  }
+
+  button, select, input, label {
+    @apply touch-manipulation;
+  }
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ☀️ MODO DÍA (High-Contrast Daylight Theme Engine) */
+body.theme-daylight {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Container Background Overrides */
+body.theme-daylight .glass-panel,
+body.theme-daylight .glass-card,
+body.theme-daylight [class*="bg-slate-950"],
+body.theme-daylight [class*="bg-slate-900"],
+body.theme-daylight [class*="bg-slate-800"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Colored Status Box Overrides in Day Mode */
+body.theme-daylight [class*="bg-cyan-950"] {
+  background-color: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+}
+
+body.theme-daylight [class*="bg-emerald-950"] {
+  background-color: #d1fae5 !important;
+  border-color: #059669 !important;
+  color: #047857 !important;
+}
+
+body.theme-daylight [class*="bg-amber-950"] {
+  background-color: #fef3c7 !important;
+  border-color: #d97706 !important;
+  color: #b45309 !important;
+}
+
+body.theme-daylight [class*="bg-rose-950"] {
+  background-color: #ffe4e6 !important;
+  border-color: #e11d48 !important;
+  color: #be123c !important;
+}
+
+/* Text Color Contrast Adjustments for Day Mode */
+body.theme-daylight .text-slate-100,
+body.theme-daylight .text-slate-200,
+body.theme-daylight .text-slate-300 {
+  color: #0f172a !important;
+}
+
+body.theme-daylight .text-slate-400 {
+  color: #334155 !important;
+}
+
+body.theme-daylight .text-slate-500 {
+  color: #475569 !important;
+}
+
+/* High Contrast Accent Colors for Day Mode */
+body.theme-daylight .text-cyan-400,
+body.theme-daylight .text-cyan-300 {
+  color: #0284c7 !important;
+}
+
+body.theme-daylight .text-emerald-400,
+body.theme-daylight .text-emerald-300 {
+  color: #059669 !important;
+}
+
+body.theme-daylight .text-amber-400,
+body.theme-daylight .text-amber-300 {
+  color: #d97706 !important;
+}
+
+body.theme-daylight .text-rose-400,
+body.theme-daylight .text-rose-300,
+body.theme-daylight .text-rose-500 {
+  color: #dc2626 !important;
+}
+
+/* Input, Select & Option Styling for Day Mode */
+body.theme-daylight input,
+body.theme-daylight select,
+body.theme-daylight textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+body.theme-daylight option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Code & Pre Box Overrides in Day Mode */
+body.theme-daylight code,
+body.theme-daylight pre {
+  background-color: #f1f5f9 !important;
+  color: #0284c7 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* 🟢 MODO NVG GREEN (Night Vision Goggles Filter) */
+body.theme-nvg-green {
+  filter: contrast(1.1) brightness(0.9);
+  background-color: #020f08 !important;
+  color: #39ff14 !important;
+}
+
+body.theme-nvg-green * {
+  border-color: rgba(57, 255, 20, 0.3) !important;
+  box-shadow: none !important;
+}
+
+/* 🔴 MODO RED (Cockpit Red Night Vision Preservation) */
+body.theme-cockpit-red {
+  filter: contrast(1.2) brightness(0.85);
+  background-color: #120203 !important;
+  color: #ff3333 !important;
+}
+
+body.theme-cockpit-red * {
+  border-color: rgba(255, 51, 51, 0.3) !important;
+  box-shadow: none !important;
+}
+
+/* Smooth Touch Scrollbar for Mobile & 10-inch Tablets */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Tablet 10" (768px - 1024px) Layout Tweaks */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tablet-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}

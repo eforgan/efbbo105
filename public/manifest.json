@@ -1,7 +1,7 @@
 {
-  "name": "Curso de Adaptación BO105 CBS4",
-  "short_name": "BO105",
-  "description": "Entrenamiento teórico interactivo para pilotos",
+  "name": "Modena BO105 EFB",
+  "short_name": "BO105 EFB",
+  "description": "Electronic Flight Bag oficial de Modena Air Service para operaciones HEMS del MBB Bölkow BO105 CBS-4 (LQ-HEMS): peso y balanceo, performance HOGE/HIGE, curva H-V, plan de vuelo OACI y bitácora digital.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

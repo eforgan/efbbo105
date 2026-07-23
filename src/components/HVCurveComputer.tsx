@@ -22,21 +22,19 @@ export default function HVCurveComputer() {
     const groundAvoid = 15; // ft
 
     if (type === 'DOUBLE') {
-      let hMax = 1000 + (w - 2100) * 0.75 + alt * 0.02;
-      hMax = Math.min(Math.max(hMax, 800), 1200);
+      const hMax = Math.min(Math.max(1000 + (w - 2100) * 0.75 + alt * 0.02, 800), 1200);
       
-      let vKnee = 65 + (w - 2100) * 0.05 + alt * 0.002;
-      let hKnee = 100 + Math.max(0, (w - 2300) * 0.5);
+      const vKnee = 65 + (w - 2100) * 0.05 + alt * 0.002;
+      const hKnee = 100 + Math.max(0, (w - 2300) * 0.5);
       
       return { hMax, vKnee, hKnee, vTail: 0, hMin: 0, isDouble: true, groundAvoid };
     } else {
       // Single Engine Failure (OEI) - La curva cae y termina en el suelo
-      let hMax = Math.max(0, 100 + (w - 2300) * 0.8 + alt * 0.02);
+      const hMax = Math.max(0, 100 + (w - 2300) * 0.8 + alt * 0.02);
       
-      let vTail = 25 + (w - 2300) * 0.1 + alt * 0.002;
-      vTail = Math.max(10, vTail);
+      const vTail = Math.max(10, 25 + (w - 2300) * 0.1 + alt * 0.002);
       
-      let hMin = Math.max(0, (w - 2300) * 0.02 + alt * 0.001);
+      const hMin = Math.max(0, (w - 2300) * 0.02 + alt * 0.001);
       
       return { hMax, vKnee: 0, hKnee: 0, vTail, hMin, isDouble: false, groundAvoid };
     }
@@ -112,16 +110,16 @@ export default function HVCurveComputer() {
       
       {/* Selector de Tipo de Falla */}
       <div className="flex justify-center mb-4">
-        <div className="bg-slate-200 p-1 rounded-xl flex flex-wrap gap-1 justify-center">
+        <div className="bg-slate-900/80 border border-slate-800 p-1 rounded-xl flex flex-wrap gap-1 justify-center">
           <button
             onClick={() => setFailureType('SINGLE')}
-            className={`px-4 sm:px-6 py-2 rounded-lg font-bold text-sm transition-colors ${failureType === 'SINGLE' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+            className={`px-4 sm:px-6 py-2 rounded-lg font-bold text-sm transition-colors cursor-pointer ${failureType === 'SINGLE' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
           >
             Falla Motor Único (OEI)
           </button>
           <button
             onClick={() => setFailureType('DOUBLE')}
-            className={`px-4 sm:px-6 py-2 rounded-lg font-bold text-sm transition-colors ${failureType === 'DOUBLE' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+            className={`px-4 sm:px-6 py-2 rounded-lg font-bold text-sm transition-colors cursor-pointer ${failureType === 'DOUBLE' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
           >
             Doble Falla (Autorrotación)
           </button>
@@ -129,9 +127,9 @@ export default function HVCurveComputer() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">
-            Peso Bruto (kg): {weight}
+        <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+          <label className="block text-sm font-semibold text-slate-400 mb-2">
+            Peso Bruto (kg): <span className="text-slate-100">{weight}</span>
           </label>
           <input
             type="range"
@@ -140,13 +138,13 @@ export default function HVCurveComputer() {
             step="10"
             value={weight}
             onChange={(e) => setWeight(Number(e.target.value))}
-            className="w-full h-3 bg-slate-300 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-slate-300"
           />
         </div>
-        
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">
-            Temperatura (°C): {temp}
+
+        <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+          <label className="block text-sm font-semibold text-slate-400 mb-2">
+            Temperatura (°C): <span className="text-slate-100">{temp}</span>
           </label>
           <input
             type="range"
@@ -155,13 +153,13 @@ export default function HVCurveComputer() {
             step="1"
             value={temp}
             onChange={(e) => setTemp(Number(e.target.value))}
-            className="w-full h-3 bg-slate-300 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-slate-300"
           />
         </div>
-        
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">
-            Altitud de Presión (ft): {altitude}
+
+        <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+          <label className="block text-sm font-semibold text-slate-400 mb-2">
+            Altitud de Presión (ft): <span className="text-slate-100">{altitude}</span>
           </label>
           <input
             type="range"
@@ -170,13 +168,13 @@ export default function HVCurveComputer() {
             step="500"
             value={altitude}
             onChange={(e) => setAltitude(Number(e.target.value))}
-            className="w-full h-3 bg-slate-300 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-slate-300"
           />
         </div>
 
-        <div className="bg-sky-50 p-4 rounded-xl border border-sky-200">
-          <label className="block text-sm font-semibold text-sky-800 mb-2">
-            Velocidad (KIAS): {speed}
+        <div className="bg-cyan-950/30 p-4 rounded-xl border border-cyan-500/30">
+          <label className="block text-sm font-semibold text-cyan-300 mb-2">
+            Velocidad (KIAS): <span className="text-cyan-100">{speed}</span>
           </label>
           <input
             type="range"
@@ -185,13 +183,13 @@ export default function HVCurveComputer() {
             step="5"
             value={speed}
             onChange={(e) => setSpeed(Number(e.target.value))}
-            className="w-full h-3 bg-sky-300 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-3 bg-cyan-900 rounded-lg appearance-none cursor-pointer accent-cyan-400"
           />
         </div>
 
-        <div className="bg-sky-50 p-4 rounded-xl border border-sky-200">
-          <label className="block text-sm font-semibold text-sky-800 mb-2">
-            Altura (ft AGL): {height}
+        <div className="bg-cyan-950/30 p-4 rounded-xl border border-cyan-500/30">
+          <label className="block text-sm font-semibold text-cyan-300 mb-2">
+            Altura (ft AGL): <span className="text-cyan-100">{height}</span>
           </label>
           <input
             type="range"
@@ -200,26 +198,26 @@ export default function HVCurveComputer() {
             step="10"
             value={height}
             onChange={(e) => setHeight(Number(e.target.value))}
-            className="w-full h-3 bg-sky-300 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-3 bg-cyan-900 rounded-lg appearance-none cursor-pointer accent-cyan-400"
           />
         </div>
       </div>
 
-      <div className={`p-4 rounded-lg font-bold text-center ${currentUnsafe ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-green-100 text-green-700 border border-green-300'}`}>
+      <div className={`p-4 rounded-lg font-bold text-center border ${currentUnsafe ? 'bg-rose-950/40 text-rose-300 border-rose-500/40' : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40'}`}>
         Estado de Operación: {currentUnsafe ? 'ÁREA A EVITAR (INSEGURA)' : 'OPERACIÓN SEGURA'}
       </div>
 
-      <div className="h-72 sm:h-96 w-full border border-slate-200 rounded-xl p-4 bg-white shadow-sm">
+      <div className="h-72 sm:h-96 w-full border border-slate-800 rounded-xl p-4 bg-slate-900/80">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="speed" type="number" domain={[0, maxSpeed]} tickCount={13}>
-              <Label value="Velocidad (KIAS)" offset={-10} position="insideBottom" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <XAxis dataKey="speed" type="number" domain={[0, maxSpeed]} tickCount={13} tick={{ fill: '#94a3b8', fontSize: 11 }}>
+              <Label value="Velocidad (KIAS)" offset={-10} position="insideBottom" fill="#94a3b8" />
             </XAxis>
-            <YAxis domain={[0, yAxisMax]} tickCount={8}>
-              <Label value="Altura (ft AGL)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+            <YAxis domain={[0, yAxisMax]} tickCount={8} tick={{ fill: '#94a3b8', fontSize: 11 }}>
+              <Label value="Altura (ft AGL)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle', fill: '#94a3b8' }} />
             </YAxis>
-            <Tooltip />
+            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }} />
             
             {/* Área a Evitar Principal */}
             <Area 

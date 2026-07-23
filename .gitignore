@@ -17,6 +17,14 @@
 /.next/
 /out/
 
+# next-pwa generated service worker (regenerated on every build)
+/public/sw.js
+/public/sw.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map
+/public/worker-*.js
+/public/swe-worker-*.js
+
 # production
 /build
 
@@ -44,3 +52,5 @@ next-env.d.ts
 *.docx
 ~$*
 .claude/
+
+.vercel
