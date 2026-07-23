@@ -215,8 +215,6 @@ function PdfViewer({ doc }: { doc: AviationDoc }) {
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  // Determine the PDF source to use
-  const activePdfSrc = localFile ?? (doc.pdfUrl?.startsWith('http') ? null : doc.pdfUrl) ?? null;
   const localPath = doc.pdfFilename ? `/docs/${doc.pdfFilename}` : null;
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
