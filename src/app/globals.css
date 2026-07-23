@@ -53,8 +53,25 @@ body.theme-daylight [class*="bg-slate-800"] {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
+/* Gradient cards (bg-gradient-to-br, from-slate-800, to-slate-900, etc.) set
+   background-image via CSS vars, not background-color, so the rule above
+   can't reach them — force a flat light background instead. */
+body.theme-daylight [class*="from-slate-800"],
+body.theme-daylight [class*="from-slate-900"],
+body.theme-daylight [class*="to-slate-800"],
+body.theme-daylight [class*="to-slate-900"],
+body.theme-daylight [class*="via-slate-800"],
+body.theme-daylight [class*="via-slate-900"] {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
 /* Colored Status Box Overrides in Day Mode */
-body.theme-daylight [class*="bg-cyan-950"] {
+body.theme-daylight [class*="bg-cyan-950"],
+body.theme-daylight [class*="bg-blue-500"],
+body.theme-daylight [class*="bg-sky-600"] {
   background-color: #e0f2fe !important;
   border-color: #0284c7 !important;
   color: #0e7490 !important;

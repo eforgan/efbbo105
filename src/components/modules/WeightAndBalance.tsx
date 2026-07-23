@@ -87,7 +87,7 @@ export const WeightAndBalanceModule: React.FC = () => {
         <span className="text-xs font-bold text-slate-300 font-mono">Cargas Rápidas Config HEMS:</span>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => applyPreset('standard-hems')} className="px-3 py-1.5 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-lg text-xs font-mono font-medium transition cursor-pointer">
-            Configuración HEMS Completa (4 Pax + Paciente)
+            Configuración HEMS Completa (PIC + SIC + Médico + Paciente)
           </button>
           <button onClick={() => applyPreset('light-med')} className="px-3 py-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-mono font-medium transition cursor-pointer">
             Misión HEMS Liviana (3 Pax)
