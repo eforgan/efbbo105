@@ -4,11 +4,12 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, doc, getDoc, Firestore } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { useProgress } from '@/context/ProgressContext';
-import { Medal, Star, Shield, Trophy, Target } from 'lucide-react';
+import { Medal, Star, Shield, Trophy, Target, Anchor } from 'lucide-react';
+import { REQUIRED_OFFSHORE_MODULE_IDS } from '@/data/offshoreModules';
 
 export default function Badges() {
   const { user } = useAuth();
-  const { completedModules } = useProgress();
+  const { completedModules, completedOffshoreModules } = useProgress();
   const [logHours, setLogHours] = useState(0);
   const [examPassed, setExamPassed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,8 @@ export default function Badges() {
 
   if (!user || loading) return null;
 
+  const isOffshoreCompleted = REQUIRED_OFFSHORE_MODULE_IDS.every(id => completedOffshoreModules.includes(id));
+
   const badges = [
     {
       id: 'first_flight',
@@ -73,10 +76,18 @@ export default function Badges() {
     {
       id: 'scholar',
       title: 'Erudito Teórico',
-      description: 'Completaste los 7 módulos de estudio.',
+      description: 'Completaste los 7 módulos de estudio estándar.',
       icon: Target,
       achieved: completedModules.length >= 7,
       color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+    },
+    {
+      id: 'offshore_expert',
+      title: 'Especialista HEMS Offshore',
+      description: 'Completaste la capacitación teórica HEMS Offshore.',
+      icon: Anchor,
+      achieved: isOffshoreCompleted,
+      color: 'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 border-teal-200 dark:border-teal-800'
     },
     {
       id: 'certified',
