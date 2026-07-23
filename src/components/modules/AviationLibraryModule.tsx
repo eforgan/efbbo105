@@ -91,7 +91,7 @@ function DocListItem({
           <p className="text-xs font-semibold text-gray-300 truncate leading-tight">{doc.code}</p>
           <p className="text-xs text-gray-400 leading-tight mt-0.5 line-clamp-2">{doc.title}</p>
           {doc.pdfFilename && (
-            <span className="mt-1 inline-flex items-center gap-0.5 text-[10px] text-emerald-400/70">
+            <span className="mt-1 inline-flex items-center gap-0.5 text-[10px] text-emerald-400">
               <FileIcon size={9} /> PDF
             </span>
           )}

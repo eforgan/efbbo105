@@ -174,7 +174,7 @@ export default function HVCurveComputer() {
 
         <div className="bg-cyan-950/30 p-4 rounded-xl border border-cyan-500/30">
           <label className="block text-sm font-semibold text-cyan-300 mb-2">
-            Velocidad (KIAS): <span className="text-cyan-100">{speed}</span>
+            Velocidad (KIAS): <span className="text-cyan-200">{speed}</span>
           </label>
           <input
             type="range"
@@ -189,7 +189,7 @@ export default function HVCurveComputer() {
 
         <div className="bg-cyan-950/30 p-4 rounded-xl border border-cyan-500/30">
           <label className="block text-sm font-semibold text-cyan-300 mb-2">
-            Altura (ft AGL): <span className="text-cyan-100">{height}</span>
+            Altura (ft AGL): <span className="text-cyan-200">{height}</span>
           </label>
           <input
             type="range"
