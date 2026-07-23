@@ -1,16 +1,44 @@
 'use client';
 
 import React from 'react';
-import { CloudSun, Wind, Radio, CheckCircle2, AlertTriangle, Waves, Anchor, Thermometer } from 'lucide-react';
+import { CloudSun, Wind, Radio, CheckCircle2, AlertTriangle, Waves, Anchor, Thermometer, RefreshCw, WifiOff } from 'lucide-react';
 import { INITIAL_METAR_STATIONS, PUNTA_COLORADA_SEA_STATE } from '../../lib/bo105-specs';
 import { MetarStationInfo } from '../../types/efb';
+import type { TafSummary } from '../../app/api/weather/route';
+
+type FetchStatus = 'loading' | 'live' | 'offline';
 
 export const WeatherDecoderModule: React.FC = () => {
-  const [stations] = React.useState<MetarStationInfo[]>(INITIAL_METAR_STATIONS);
+  const [stations, setStations] = React.useState<MetarStationInfo[]>(INITIAL_METAR_STATIONS);
+  const [tafs, setTafs] = React.useState<TafSummary[]>([]);
+  const [status, setStatus] = React.useState<FetchStatus>('loading');
+  const [fetchedAtUtc, setFetchedAtUtc] = React.useState<string | null>(null);
   const [selectedIcao, setSelectedIcao] = React.useState<string>('SAZN');
   const [rwHeadingDeg, setRwHeadingDeg] = React.useState<number>(270);
 
+  const loadWeather = React.useCallback(async () => {
+    setStatus('loading');
+    try {
+      const res = await fetch('/api/weather');
+      const data = await res.json();
+      if (!res.ok || !data.metars?.length) throw new Error('empty response');
+      setStations(data.metars);
+      setTafs(data.tafs ?? []);
+      setFetchedAtUtc(data.fetchedAtUtc ?? new Date().toISOString());
+      setStatus('live');
+    } catch {
+      // Keep whatever we already had (seed data on first load, last-known-good afterwards).
+      setStatus('offline');
+    }
+  }, []);
+
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount, this is the documented async-effect pattern
+    loadWeather();
+  }, [loadWeather]);
+
   const activeStation = stations.find(s => s.icao === selectedIcao) || stations[0];
+  const activeTaf = tafs.find(t => t.icao === selectedIcao) || null;
 
   // Wind component calculations
   const angleRad = ((activeStation.windDirDeg - rwHeadingDeg) * Math.PI) / 180;
@@ -31,9 +59,30 @@ export const WeatherDecoderModule: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-xs bg-cyan-950/40 text-cyan-300 border border-cyan-500/40 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
-            <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" /> Actualizado OACI 11:00 UTC
-          </span>
+          {status === 'live' && (
+            <span className="text-xs bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+              <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+              {fetchedAtUtc ? `METAR/TAF en vivo • ${new Date(fetchedAtUtc).toUTCString().slice(17, 22)} UTC` : 'METAR/TAF en vivo'}
+            </span>
+          )}
+          {status === 'offline' && (
+            <span className="text-xs bg-amber-950/40 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+              <WifiOff className="w-3.5 h-3.5" /> Sin conexión — mostrando datos de referencia
+            </span>
+          )}
+          {status === 'loading' && (
+            <span className="text-xs bg-slate-900 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Consultando NOAA AWC…
+            </span>
+          )}
+          <button
+            onClick={loadWeather}
+            disabled={status === 'loading'}
+            title="Actualizar METAR/TAF"
+            className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-cyan-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`w-4 h-4 ${status === 'loading' ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
@@ -103,7 +152,7 @@ export const WeatherDecoderModule: React.FC = () => {
             <div className="bg-slate-900/80 p-3 rounded-lg border border-slate-800">
               <span className="text-[10px] text-slate-400">Nubosidad & Techo</span>
               <p className="text-base font-bold text-cyan-400">{activeStation.cloudCover}</p>
-              <p className="text-[10px] text-slate-500">Base estimada 4,000 ft AGL</p>
+              <p className="text-[10px] text-slate-500">Base en cientos de pies (ej. 019 = 1,900 ft)</p>
             </div>
           </div>
         </div>
@@ -160,6 +209,57 @@ export const WeatherDecoderModule: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* TAF Forecast Panel */}
+      <div className="glass-card p-4 rounded-xl border border-slate-800 space-y-4 font-mono">
+        <h3 className="text-xs font-bold text-slate-100 uppercase tracking-wider border-b border-slate-800 pb-2">
+          TAF Pronóstico - Estación {activeStation.icao}
+        </h3>
+
+        {activeTaf ? (
+          <>
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-amber-300 font-bold text-xs whitespace-pre-wrap break-words">
+              <code>{activeTaf.rawTaf}</code>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[11px]">
+                <thead className="bg-slate-900/80 text-slate-400 uppercase border-b border-slate-800">
+                  <tr>
+                    <th className="p-2">Periodo (UTC)</th>
+                    <th className="p-2">Cambio</th>
+                    <th className="p-2">Viento</th>
+                    <th className="p-2">Visibilidad</th>
+                    <th className="p-2">Nubosidad</th>
+                    <th className="p-2">Fenómeno</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800 text-slate-200">
+                  {activeTaf.periods.map((p, idx) => (
+                    <tr key={idx} className="hover:bg-slate-900/40">
+                      <td className="p-2 whitespace-nowrap">
+                        {p.fromUtc.slice(11, 16)}–{p.toUtc.slice(11, 16)}
+                      </td>
+                      <td className="p-2">
+                        {p.change || 'BASE'}{p.probability ? ` ${p.probability}%` : ''}
+                      </td>
+                      <td className="p-2">
+                        {p.windDirDeg ?? '—'}° / {p.windSpeedKt ?? '—'}kt{p.windGustKt ? ` G${p.windGustKt}kt` : ''}
+                      </td>
+                      <td className="p-2">{p.visibilityKm} km</td>
+                      <td className="p-2">{p.cloudCover}</td>
+                      <td className="p-2">{p.weather || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-slate-500">
+            {status === 'loading' ? 'Consultando pronóstico TAF…' : 'TAF no disponible para esta estación en este momento.'}
+          </p>
+        )}
       </div>
 
       {/* Sea State Panel for Punta Colorada Offshore (YPF VMOS) */}
