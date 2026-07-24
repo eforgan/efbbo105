@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { DisplayMode, MissionType } from '../types/efb';
 import { Activity, Battery, Sun, Moon, Eye, Radio, ShieldAlert, Menu } from 'lucide-react';
 
@@ -42,13 +43,11 @@ export const Header: React.FC<HeaderProps> = ({ mode, setMode, mission, setMissi
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
             <Activity className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
           </div>
+          <div className="bg-white rounded-lg p-1 shrink-0 flex items-center">
+            <Image src="/mas_logo.jpg" alt="Modena Air Service" width={120} height={42} className="h-5 sm:h-6 w-auto" />
+          </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="font-bold text-base sm:text-lg tracking-wider text-slate-100">BO105 EFB</h1>
-              <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[10px] sm:text-xs px-2 py-0.5 rounded font-mono font-bold">
-                LQ-HEMS
-              </span>
-            </div>
+            <h1 className="font-bold text-base sm:text-lg tracking-wider text-slate-100">BO105 EFB</h1>
             <p className="text-[10px] sm:text-xs text-slate-400 font-mono">Modena Air Service • Dual Allison</p>
           </div>
         </div>
@@ -71,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({ mode, setMode, mission, setMissi
             onChange={(e) => setMission(e.target.value as MissionType)}
             className="bg-slate-800 text-[11px] sm:text-xs font-mono text-cyan-300 rounded px-2 py-1 border border-slate-700 outline-none cursor-pointer truncate max-w-[170px] sm:max-w-none"
           >
-            <option value="hems-neuquen-vista">Neuquén Vaca Muerta (Vista)</option>
+            <option value="hems-neuquen-vista">Neuquén Vaca Muerta (Vista Energy)</option>
             <option value="hems-rosario-utv">Zona Rosario (UTV HEMS)</option>
             <option value="hems-same-ba">Buenos Aires (SAME AÉREO)</option>
             <option value="hems-ypf-vmos">YPF VMOS Offshore Support</option>

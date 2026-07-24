@@ -3,30 +3,52 @@
 import React from 'react';
 import { generateDispatchPDF } from '../../lib/pdf-generator';
 import { calculateWB, calculatePerformance, buildRouteLegs } from '../../lib/calculations';
-import { INITIAL_STATIONS, MODENA_WAYPOINTS } from '../../lib/bo105-specs';
+import { MODENA_WAYPOINTS, DEFAULT_WAYPOINTS } from '../../lib/bo105-specs';
+import { useEfbData } from '../../context/EfbDataContext';
 import { FileCheck, Download } from 'lucide-react';
 
+const MISSION_LABELS: Record<string, string> = {
+  'hems-neuquen-vista': 'Neuquén Vaca Muerta (Vista Energy)',
+  'hems-rosario-utv': 'Zona Rosario (UTV HEMS Fluvial)',
+  'hems-same-ba': 'Buenos Aires (SAME AÉREO Urbano)',
+  'hems-ypf-vmos': 'YPF VMOS Offshore Support',
+  'hems-onshore': 'HEMS Onshore',
+  'hems-offshore': 'HEMS Offshore',
+  training: 'Entrenamiento & Simulación',
+};
+
 export const FlightDispatchPDFModule: React.FC = () => {
+  const { stations, performanceInput, mission, profile } = useEfbData();
   const [pilotName, setPilotName] = React.useState<string>('Cap. Juan Pérez (PIC)');
   const [copilotName, setCopilotName] = React.useState<string>('Of. Esteban Gómez (SIC)');
   const [doctorName, setDoctorName] = React.useState<string>('Dr. Carlos Rossi (Médico HEMS)');
-  const [contractName, setContractName] = React.useState<string>('Neuquén Vaca Muerta (Contrato Vista)');
 
-  const summary = React.useMemo(() => calculateWB(INITIAL_STATIONS), []);
+  // Prefill whichever crew field matches the registered local profile's role, so a
+  // tripulante que se registró no tiene que retipear su nombre en cada despacho.
+  React.useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time sync from the local profile store on mount/change, not a render loop */
+    if (!profile || !profile.fullName) return;
+    if (profile.role === 'PIC') setPilotName(profile.fullName);
+    else if (profile.role === 'SIC') setCopilotName(profile.fullName);
+    else if (profile.role === 'medico') setDoctorName(profile.fullName);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [profile]);
+
+  // Contract name follows the mission selected in the Header, so the printed dispatch
+  // always matches the route/waypoints actually used for the navigation section below.
+  const contractName = MISSION_LABELS[mission] || MISSION_LABELS['hems-neuquen-vista'];
+
+  const summary = React.useMemo(() => calculateWB(stations), [stations]);
   const perf = React.useMemo(() => calculatePerformance({
-    pressureAltFt: 500,
-    tempC: 18,
-    qnhHpa: 1013,
-    windSpeedKt: 15,
-    windDirDeg: 270,
-    runwayHeadingDeg: 250,
+    ...performanceInput,
     takeoffWeightKg: summary.totalWeightKg,
-  }), [summary]);
+  }), [performanceInput, summary]);
 
-  const legs = React.useMemo(() => buildRouteLegs(MODENA_WAYPOINTS['hems-neuquen-vista']), []);
+  const waypoints = MODENA_WAYPOINTS[mission] || DEFAULT_WAYPOINTS;
+  const legs = React.useMemo(() => buildRouteLegs(waypoints), [waypoints]);
 
   const handleExportPDF = () => {
-    generateDispatchPDF(summary, INITIAL_STATIONS, perf, legs, pilotName, contractName, copilotName, doctorName);
+    generateDispatchPDF(summary, stations, perf, legs, pilotName, contractName, copilotName, doctorName);
   };
 
   return (
@@ -60,16 +82,12 @@ export const FlightDispatchPDFModule: React.FC = () => {
           <div className="space-y-3 text-xs">
             <div>
               <label className="text-slate-400 block mb-1">Contrato / Misión Modena</label>
-              <select
-                value={contractName}
-                onChange={(e) => setContractName(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200"
-              >
-                <option value="Neuquén Vaca Muerta (Contrato Vista)">Neuquén Vaca Muerta (Contrato Vista)</option>
-                <option value="Zona Rosario (UTV HEMS Fluvial)">Zona Rosario (UTV HEMS Fluvial)</option>
-                <option value="Buenos Aires (SAME AÉREO Urbano)">Buenos Aires (SAME AÉREO Urbano)</option>
-                <option value="YPF VMOS Offshore Support">YPF VMOS Offshore Support</option>
-              </select>
+              <div className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-cyan-300 font-bold">
+                {contractName}
+              </div>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Se define en el selector de Misión del encabezado — determina la ruta y exposición overwater del despacho.
+              </p>
             </div>
 
             <div>
@@ -109,7 +127,7 @@ export const FlightDispatchPDFModule: React.FC = () => {
           <div className="border-b border-slate-700 pb-3 flex justify-between items-center">
             <div>
               <h4 className="font-bold text-sm text-cyan-400">DESPACHO DE VUELO HEMS - MODENA AIR SERVICE</h4>
-              <p className="text-[10px] text-slate-400">Matrícula: LQ-HEMS • Operador: Modena Air Service • BO105 CBS-4 Stretched</p>
+              <p className="text-[10px] text-slate-400">Operador: Modena Air Service • BO105 CBS-4 Stretched</p>
             </div>
             <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs px-2.5 py-1 rounded font-bold">
               APROBADO RAAC 135
@@ -119,12 +137,17 @@ export const FlightDispatchPDFModule: React.FC = () => {
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div>
               <p className="text-[10px] text-slate-400 uppercase">Resumen Peso y Balanceo</p>
-              <p className="font-bold">Peso Total Despegue: {summary.totalWeightKg} kg / 2,500 kg MTOW</p>
-              <p className="font-bold">Centro de Gravedad: {summary.cgLocationMm.toFixed(1)} mm (DENTRO DE ENVOLVENTE)</p>
+              <p className={`font-bold ${summary.isWeightValid ? '' : 'text-rose-400'}`}>
+                Peso Total Despegue: {summary.totalWeightKg} kg / 2,500 kg MTOW {summary.isWeightValid ? '' : '(EXCEDIDO)'}
+              </p>
+              <p className={`font-bold ${summary.isCgValid ? '' : 'text-rose-400'}`}>
+                Centro de Gravedad: {summary.cgLocationMm.toFixed(1)} mm ({summary.isCgValid ? 'DENTRO DE ENVOLVENTE' : 'FUERA DE LÍMITES'})
+              </p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 uppercase">Performance HOGE</p>
-              <p className="font-bold text-emerald-400">Techo HOGE: {perf.hogeMaxWeightKg} kg (CUMPLE MARGEN)</p>
+              <p className={`font-bold ${perf.canHoge ? 'text-emerald-400' : 'text-rose-400'}`}>
+                Techo HOGE: {perf.hogeMaxWeightKg} kg ({perf.canHoge ? 'CUMPLE MARGEN' : 'NO CUMPLE'})
+              </p>
               <p className="font-bold text-amber-400">Ascenso OEI: +{perf.oeiClimbRateFpm} ft/min</p>
             </div>
           </div>

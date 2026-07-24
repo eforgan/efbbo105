@@ -1,4 +1,4 @@
-import { WBStation, WBSummary, PerformanceInput, PerformanceResult, Waypoint, RouteLeg, OxygenCalculation } from '../types/efb';
+import { WBStation, WBSummary, PerformanceInput, PerformanceResult, Waypoint, RouteLeg, OxygenCalculation, LatLon } from '../types/efb';
 import { BO105_SPECS } from './bo105-specs';
 
 export function calculateWB(stations: WBStation[]): WBSummary {
@@ -104,7 +104,7 @@ export function calculatePerformance(input: PerformanceInput): PerformanceResult
   };
 }
 
-export function calculateDistanceNm(w1: Waypoint, w2: Waypoint): number {
+export function calculateDistanceNm(w1: LatLon, w2: LatLon): number {
   const R = 3440.065; // Earth radius in NM
   const dLat = ((w2.lat - w1.lat) * Math.PI) / 180;
   const dLon = ((w2.lon - w1.lon) * Math.PI) / 180;
@@ -118,7 +118,7 @@ export function calculateDistanceNm(w1: Waypoint, w2: Waypoint): number {
   return Math.round(R * c * 10) / 10;
 }
 
-export function calculateHeadingDeg(w1: Waypoint, w2: Waypoint): number {
+export function calculateHeadingDeg(w1: LatLon, w2: LatLon): number {
   const y = Math.sin(((w2.lon - w1.lon) * Math.PI) / 180) * Math.cos((w2.lat * Math.PI) / 180);
   const x =
     Math.cos((w1.lat * Math.PI) / 180) * Math.sin((w2.lat * Math.PI) / 180) -

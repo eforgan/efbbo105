@@ -3,6 +3,7 @@
 import React from 'react';
 import { Book, Plus, Download, CheckCircle2 } from 'lucide-react';
 import { FlightLogEntry, MissionType } from '../../types/efb';
+import { useEfbData } from '../../context/EfbDataContext';
 
 const INITIAL_LOGS: FlightLogEntry[] = [
   {
@@ -49,6 +50,7 @@ const INITIAL_LOGS: FlightLogEntry[] = [
 const STORAGE_KEY = 'modena-efb-logbook-v1';
 
 export const FlightLogbookModule: React.FC = () => {
+  const { profile } = useEfbData();
   const [logs, setLogs] = React.useState<FlightLogEntry[]>(INITIAL_LOGS);
   const [hydrated, setHydrated] = React.useState(false);
   const [showForm, setShowForm] = React.useState(false);
@@ -90,6 +92,12 @@ export const FlightLogbookModule: React.FC = () => {
   const [landingsCount, setLandingsCount] = React.useState(1);
   const [notes, setNotes] = React.useState('');
 
+  // Prefill PIC name from the registered local profile, if this device's tripulante is a PIC.
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from the local profile store on mount/change, not a render loop
+    if (profile && profile.role === 'PIC' && profile.fullName) setPicName(profile.fullName);
+  }, [profile]);
+
   const totalHours = logs.reduce((sum, l) => sum + l.flightTimeHours, 0).toFixed(1);
   const totalLandings = logs.reduce((sum, l) => sum + l.landingsCount, 0);
 
@@ -113,8 +121,9 @@ export const FlightLogbookModule: React.FC = () => {
   };
 
   const exportCSV = () => {
+    const csvField = (value: string) => `"${value.replace(/"/g, '""')}"`;
     const headers = ['Fecha,Mision,Origen,Destino,Horas,Combustible_kg,Aterrizajes,Piloto,Notas'];
-    const rows = logs.map(l => `${l.date},${l.missionType},"${l.departurePoint}","${l.destinationPoint}",${l.flightTimeHours},${l.fuelUsedKg},${l.landingsCount},"${l.picName}","${l.notes.replace(/"/g, '""')}"`);
+    const rows = logs.map(l => `${l.date},${l.missionType},${csvField(l.departurePoint)},${csvField(l.destinationPoint)},${l.flightTimeHours},${l.fuelUsedKg},${l.landingsCount},${csvField(l.picName)},${csvField(l.notes)}`);
     const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -203,7 +212,7 @@ export const FlightLogbookModule: React.FC = () => {
                 onChange={(e) => setMissionType(e.target.value as MissionType)}
                 className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200"
               >
-                <option value="hems-neuquen-vista">Neuquén Vaca Muerta (Vista)</option>
+                <option value="hems-neuquen-vista">Neuquén Vaca Muerta (Vista Energy)</option>
                 <option value="hems-rosario-utv">Zona Rosario (UTV HEMS)</option>
                 <option value="hems-same-ba">Buenos Aires (SAME AÉREO)</option>
                 <option value="hems-ypf-vmos">YPF VMOS Offshore Support</option>

@@ -1,21 +1,14 @@
 'use client';
 
 import React from 'react';
-import { PerformanceInput, PerformanceResult } from '../../types/efb';
+import { PerformanceResult } from '../../types/efb';
 import { calculatePerformance } from '../../lib/calculations';
+import { useEfbData } from '../../context/EfbDataContext';
 import { Gauge, Thermometer, Wind, Mountain, AlertOctagon, CheckCircle2, BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
 export const PerformanceCalcModule: React.FC = () => {
-  const [input, setInput] = React.useState<PerformanceInput>({
-    pressureAltFt: 500,
-    tempC: 18,
-    qnhHpa: 1013,
-    windSpeedKt: 18,
-    windDirDeg: 270,
-    runwayHeadingDeg: 250,
-    takeoffWeightKg: 2420,
-  });
+  const { performanceInput: input, setPerformanceInput: setInput } = useEfbData();
 
   const result: PerformanceResult = React.useMemo(() => calculatePerformance(input), [input]);
 
@@ -42,7 +35,7 @@ export const PerformanceCalcModule: React.FC = () => {
             <Gauge className="w-5 h-5 text-cyan-400" /> Performance & Potencia Estacionario HIGE / HOGE (BO105 CBS-4)
           </h2>
           <p className="text-xs text-slate-400 font-mono">
-            Cálculos OGE (Out of Ground Effect) obligatorios para operaciones helideck buque DLV Seminole y sobre agua.
+            Cálculos OGE (Out of Ground Effect) obligatorios para operaciones en helideck y tramos sobre agua (offshore).
           </p>
         </div>
         <div className="flex items-center space-x-2">

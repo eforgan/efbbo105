@@ -3,17 +3,16 @@
 import React from 'react';
 import { Compass, Wind, CheckCircle2, ShieldAlert } from 'lucide-react';
 
-type HelipadId = 'seminole' | 'sanatorio-parque' | 'anelo' | 'santojanni';
+type HelipadId = 'sanatorio-parque' | 'anelo' | 'santojanni';
 
 const HELIPAD_LABELS: Record<HelipadId, string> = {
-  seminole: 'DLV Seminole (Buque Helideck YPF)',
   'sanatorio-parque': 'Sanatorio Parque (UTV Rosario)',
-  anelo: 'Añelo (Vaca Muerta Vista)',
+  anelo: 'Añelo (Vaca Muerta Vista Energy)',
   santojanni: 'Hospital Santojanni (SAME Buenos Aires)',
 };
 
 export const HelideckLandingSimModule: React.FC = () => {
-  const [helipadType, setHelipadType] = React.useState<HelipadId>('seminole');
+  const [helipadType, setHelipadType] = React.useState<HelipadId>('anelo');
   const [windDirDeg, setWindDirDeg] = React.useState<number>(310);
   const [windSpeedKt, setWindSpeedKt] = React.useState<number>(18);
   const [approachHeadingDeg, setApproachHeadingDeg] = React.useState<number>(320);
@@ -57,11 +56,10 @@ export const HelideckLandingSimModule: React.FC = () => {
           <select
             value={helipadType}
             onChange={(e) => setHelipadType(e.target.value as HelipadId)}
-            className="bg-slate-900 text-xs font-mono text-cyan-300 rounded px-3 py-1.5 border border-slate-700 outline-none cursor-pointer"
+            className="bg-slate-900 text-xs font-mono text-cyan-300 rounded px-3 py-1.5 border border-slate-700 outline-none cursor-pointer truncate max-w-[200px] sm:max-w-none"
           >
-            <option value="seminole">DLV Seminole (Buque Helideck YPF)</option>
+            <option value="anelo">Añelo (Vaca Muerta Vista Energy)</option>
             <option value="sanatorio-parque">Sanatorio Parque (UTV Rosario)</option>
-            <option value="anelo">Añelo (Vaca Muerta Vista)</option>
             <option value="santojanni">Hospital Santojanni (SAME Buenos Aires)</option>
           </select>
         </div>

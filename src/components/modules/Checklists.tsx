@@ -110,7 +110,7 @@ export const ChecklistsModule: React.FC = () => {
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 glass-card p-3 rounded-xl border border-slate-800 font-mono">
-        <div className="flex items-center space-x-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-slate-400 mr-2">Categoría:</span>
           <button
             onClick={() => setActiveFilter('all')}

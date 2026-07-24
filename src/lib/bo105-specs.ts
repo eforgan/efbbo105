@@ -2,7 +2,7 @@ import { AircraftSpecs, WBStation, Waypoint, RiskFactor, MetarStationInfo, SeaSt
 
 export const BO105_SPECS: AircraftSpecs = {
   model: 'MBB Bölkow BO 105 CBS-4 Stretched',
-  registration: 'LQ-HEMS (Modena Air Service)',
+  registration: 'Modena Air Service',
   mtowKg: 2500,
   bewKg: 1460,
   bewArmMm: 3250,
@@ -47,7 +47,7 @@ export const MODENA_WAYPOINTS: Record<string, Waypoint[]> = {
   'hems-neuquen-vista': [
     { id: 'sazn', name: 'SAZN - Aeropuerto Neuquén (Base)', lat: -38.9489, lon: -68.1558, altFt: 890, isOverwater: false, type: 'airfield' },
     { id: 'anl', name: 'ANL - Helipuerto Añelo (Vaca Muerta)', lat: -38.3556, lon: -68.7889, altFt: 1350, isOverwater: false, type: 'helideck' },
-    { id: 'rds', name: 'RDS - Rincón de los Sauces (Contrato Vista)', lat: -37.3872, lon: -68.9042, altFt: 1820, isOverwater: false, type: 'airfield' },
+    { id: 'rds', name: 'RDS - Rincón de los Sauces (Vista Energy)', lat: -37.3872, lon: -68.9042, altFt: 1820, isOverwater: false, type: 'airfield' },
     { id: 'cut', name: 'CUT - Cutral Có (YPF VMOS)', lat: -38.9397, lon: -69.2642, altFt: 2160, isOverwater: false, type: 'airfield' },
   ],
   'hems-rosario-utv': [
@@ -63,10 +63,9 @@ export const MODENA_WAYPOINTS: Record<string, Waypoint[]> = {
     { id: 'sadf', name: 'SADF - San Fernando (Mantenimiento Modena)', lat: -34.4533, lon: -58.5897, altFt: 10, isOverwater: false, type: 'airfield' },
   ],
   'hems-ypf-vmos': [
-    { id: 'sa21', name: 'SA21 - Sierra Grande (Base Costera)', lat: -41.6521, lon: -65.3562, altFt: 820, isOverwater: false, type: 'airfield' },
+    { id: 'sahr', name: 'SAHR - General Roca (Inicio Traza Gasoducto)', lat: -39.0007, lon: -67.6205, altFt: 852, isOverwater: false, type: 'airfield' },
     { id: 'pc', name: 'PC - Punta Colorada (Entrada Mar)', lat: -41.6967, lon: -65.0233, altFt: 50, isOverwater: false, type: 'costal-entry' },
-    { id: 'seminole', name: 'DLV Seminole - Helideck Buque (YPF)', lat: -41.7100, lon: -64.9350, altFt: 85, isOverwater: true, type: 'helideck' },
-    { id: 'savy', name: 'SAVY - Puerto Madryn (Hospital Regional)', lat: -42.7600, lon: -65.0700, altFt: 430, isOverwater: false, type: 'hospital' },
+    { id: 'boya7', name: 'Boya 7 - Punto de Retorno Offshore (7 km E Punta Colorada)', lat: -41.6968, lon: -64.9391, altFt: 0, isOverwater: true, type: 'buoy' },
   ],
 };
 

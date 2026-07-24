@@ -10,7 +10,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Modena Air Service • EFB BO105 CBS-4 HEMS",
   manifest: "/manifest.json",
-  description: "Electronic Flight Bag oficial de aviación para operaciones HEMS de helicóptero MBB Bölkow BO 105 CBS-4 Stretched (LQ-HEMS). Calculadora de peso y balanceo, performance HOGE/HIGE, plan de vuelo OACI EANA y manuales.",
+  description: "Electronic Flight Bag oficial de aviación para operaciones HEMS de helicóptero MBB Bölkow BO 105 CBS-4 Stretched. Calculadora de peso y balanceo, performance HOGE/HIGE, plan de vuelo OACI EANA y manuales.",
   applicationName: "Modena BO105 EFB",
   authors: [{ name: "Modena Air Service Operational Flight Department" }],
   generator: "Next.js",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://efbbo105.vercel.app"),
   openGraph: {
     title: "Modena Air Service • EFB BO105 CBS-4 HEMS",
-    description: "Electronic Flight Bag oficial para helicóptero Bölkow BO 105 CBS-4 Stretched (LQ-HEMS)",
+    description: "Electronic Flight Bag oficial para helicóptero Bölkow BO 105 CBS-4 Stretched",
     url: "https://efbbo105.vercel.app",
     siteName: "Modena BO105 EFB",
     locale: "es_AR",

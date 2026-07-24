@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Header } from '../components/Header';
 import { Sidebar, TabType } from '../components/Sidebar';
-import { DisplayMode, MissionType } from '../types/efb';
+import { DisplayMode } from '../types/efb';
+import { EfbDataProvider, useEfbData } from '../context/EfbDataContext';
 import { WeightAndBalanceModule } from '../components/modules/WeightAndBalance';
 import { PerformanceCalcModule } from '../components/modules/PerformanceCalc';
 import { HVCurveModule } from '../components/modules/HVCurveModule';
@@ -20,12 +22,24 @@ import { HelideckLandingSimModule } from '../components/modules/HelideckLandingS
 import { AviationLibraryModule } from '../components/modules/AviationLibraryModule';
 import { FlightLogbookModule } from '../components/modules/FlightLogbookModule';
 import { FlightDispatchPDFModule } from '../components/modules/FlightDispatchPDF';
+import { HomeModule } from '../components/modules/HomeModule';
+import { OperationManualModule } from '../components/modules/OperationManualModule';
+import { ProfileModule } from '../components/modules/ProfileModule';
+import { NavigationPlanningModule } from '../components/modules/NavigationPlanningModule';
 import { ShieldAlert } from 'lucide-react';
 
 export default function EFBHomePage() {
+  return (
+    <EfbDataProvider>
+      <EFBHomeContent />
+    </EfbDataProvider>
+  );
+}
+
+function EFBHomeContent() {
   const [mode, setMode] = React.useState<DisplayMode>('glass');
-  const [mission, setMission] = React.useState<MissionType>('hems-neuquen-vista');
-  const [activeTab, setActiveTab] = React.useState<TabType>('wb');
+  const { mission, setMission } = useEfbData();
+  const [activeTab, setActiveTab] = React.useState<TabType>('home');
   const [isOpenMobile, setIsOpenMobile] = React.useState<boolean>(false);
 
   React.useEffect(() => {
@@ -67,9 +81,13 @@ export default function EFBHomePage() {
 
         {/* Main Active Module */}
         <main className="flex-1 p-2 sm:p-4 pb-12">
+          {activeTab === 'home' && <HomeModule onNavigate={setActiveTab} />}
+          {activeTab === 'manual' && <OperationManualModule />}
+          {activeTab === 'profile' && <ProfileModule />}
           {activeTab === 'wb' && <WeightAndBalanceModule />}
           {activeTab === 'perf' && <PerformanceCalcModule />}
           {activeTab === 'hvcurve' && <HVCurveModule />}
+          {activeTab === 'navplan' && <NavigationPlanningModule />}
           {activeTab === 'route' && <FlightPlannerModule mission={mission} />}
           {activeTab === 'fuel' && <FuelRangeModule />}
           {activeTab === 'hems' && <HemsMedicalModule />}
@@ -86,9 +104,15 @@ export default function EFBHomePage() {
         </main>
 
         {/* Cockpit Footer */}
-        <footer className="border-t border-slate-800 py-3 px-4 text-center font-mono text-xs text-slate-500 flex flex-wrap justify-between items-center w-full">
-          <span>MODENA AIR SERVICE • ELECTRONIC FLIGHT BAG • MBB BÖLKOW BO105 CBS-4 (LQ-HEMS)</span>
+        <footer className="border-t border-slate-800 py-3 px-4 text-center font-mono text-xs text-slate-500 flex flex-wrap justify-between items-center w-full gap-1">
+          <div className="flex items-center gap-2">
+            <div className="bg-white rounded p-1 shrink-0 flex items-center">
+              <Image src="/mas_logo.jpg" alt="Modena Air Service" width={120} height={42} className="h-4 w-auto" />
+            </div>
+            <span>MODENA AIR SERVICE • ELECTRONIC FLIGHT BAG • MBB BÖLKOW BO105 CBS-4</span>
+          </div>
           <span>REVISIÓN ANAC RAAC 91/135 • CONTRATOS VISTA / UTV / SAME / YPF</span>
+          <span>Desarrollado por eforgan</span>
         </footer>
       </div>
     </div>

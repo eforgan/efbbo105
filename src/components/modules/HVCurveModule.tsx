@@ -19,7 +19,7 @@ export const HVCurveModule: React.FC = () => {
         </div>
         <div className="flex items-center space-x-2">
           <span className="text-xs bg-amber-950/40 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg font-bold">
-            RFM Sección 5 • Curva Limitante
+            Aproximación Educativa • No es el RFM
           </span>
         </div>
       </div>
@@ -31,6 +31,11 @@ export const HVCurveModule: React.FC = () => {
         </div>
         <p>
           La curva H-V define las combinaciones de altura AGL y velocidad KIAS donde una falla repentina de motor (OEI) o doble falla de motor no permite una autorrotación segura a tierra o aterrizaje forzado controlado. Mantenga perfiles de despegue de alto ángulo fuera del sombreado rojo en helipuertos urbanos (SAME) y helidecks fluviales (UTV Rosario).
+        </p>
+        <p className="text-amber-300">
+          Esta gráfica es una forma estilizada con fines de estudio, no una transcripción de las curvas del RFM. Para
+          la curva limitante oficial (Fig. 5-5 falla simple / Fig. 5-6 falla doble, BO 105 CB/CBS) consulte el documento
+          RFM en <strong>Biblioteca ANAC &amp; RFM</strong>.
         </p>
       </div>
 

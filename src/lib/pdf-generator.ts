@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { WBSummary, WBStation, PerformanceResult, RouteLeg } from '../types/efb';
+import { BO105_SPECS } from './bo105-specs';
 
 export function generateDispatchPDF(
   summary: WBSummary,
@@ -7,7 +8,7 @@ export function generateDispatchPDF(
   perf: PerformanceResult,
   legs: RouteLeg[],
   pilotName: string = 'Cap. Juan Pérez (PIC)',
-  missionType: string = 'Neuquén Vaca Muerta (Contrato Vista)',
+  missionType: string = 'Neuquén Vaca Muerta (Vista Energy)',
   copilotName: string = '',
   doctorName: string = ''
 ) {
@@ -27,7 +28,7 @@ export function generateDispatchPDF(
   doc.setFont('helvetica', 'normal');
   doc.text('HOJA DE DESPACHO OFICIAL, PESO & BALANCEO Y PERFORMANCE RAAC 135 HEMS', 14, 21);
   doc.text(`Fecha: ${dateStr}`, 135, 21);
-  doc.text('MBB BÖLKOW BO105 CBS-4 STRETCHED (LQ-HEMS)', 14, 27);
+  doc.text('MBB BÖLKOW BO105 CBS-4 STRETCHED', 14, 27);
 
   // Aircraft & Mission Info
   doc.setTextColor(0, 0, 0);
@@ -38,7 +39,7 @@ export function generateDispatchPDF(
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text(`Aeronave: MBB Bölkow BO105 CBS-4 Stretched (+10 in)`, 14, 47);
-  doc.text(`Matrícula: LQ-HEMS (Modena Air Service)`, 14, 53);
+  doc.text(`Operador: Modena Air Service`, 14, 53);
   doc.text(`Piloto al Mando (PIC): ${pilotName}`, 14, 59);
   doc.text(`Contrato / Operación: ${missionType}`, 110, 47);
   doc.text(`MTOW Máximo: 2,500 kg`, 110, 53);
@@ -67,10 +68,11 @@ export function generateDispatchPDF(
 
   y += 6;
   doc.setFont('helvetica', 'normal');
+  const bewMomentKgM = ((BO105_SPECS.bewKg * BO105_SPECS.bewArmMm) / 1000).toFixed(1);
   doc.text('Peso Básico Vacío (BEW)', 16, y);
-  doc.text('3250', 110, y);
-  doc.text('1460', 140, y);
-  doc.text('4745.0', 170, y);
+  doc.text(BO105_SPECS.bewArmMm.toString(), 110, y);
+  doc.text(BO105_SPECS.bewKg.toString(), 140, y);
+  doc.text(bewMomentKgM, 170, y);
 
   stations.forEach(st => {
     y += 5.5;
@@ -209,7 +211,7 @@ export function generateEanaFlightPlanPDF(params: {
   doc.text('FORMULARIO REGLAMENTARIO DE PLAN DE VUELO (FPL 1801 OACI / ANAC)', 15, 24);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`FECHA EMISIÓN: ${new Date().toLocaleDateString('es-AR')} | OPERADOR: MODENA AIR SERVICE (LQ-HEMS)`, 15, 29);
+  doc.text(`FECHA EMISIÓN: ${new Date().toLocaleDateString('es-AR')} | OPERADOR: MODENA AIR SERVICE`, 15, 29);
 
   // Casilla 3 - Prioridad & Encabezado ATS
   doc.rect(10, 34, 190, 14);

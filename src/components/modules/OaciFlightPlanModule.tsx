@@ -3,8 +3,10 @@
 import React from 'react';
 import { Send, Copy, Check, FileText, Mail, ShieldAlert, Plane, Download } from 'lucide-react';
 import { generateEanaFlightPlanPDF } from '../../lib/pdf-generator';
+import { useEfbData } from '../../context/EfbDataContext';
 
 export const OaciFlightPlanModule: React.FC = () => {
+  const { profile } = useEfbData();
   // Casilla 7 & 8
   const [callsign, setCallsign] = React.useState<string>('LQHEMS');
   const [flightRules, setFlightRules] = React.useState<string>('V');
@@ -41,6 +43,12 @@ export const OaciFlightPlanModule: React.FC = () => {
   const [pobCount, setPobCount] = React.useState<number>(4);
   const [picName, setPicName] = React.useState<string>('Cap. Juan Pérez (PIC)');
   const [aircraftColor] = React.useState<string>('BLANCO CON AZUL Y ROJO MODENA');
+
+  // Prefill PIC name from the registered local profile, if this device's tripulante is a PIC.
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from the local profile store on mount/change, not a render loop
+    if (profile && profile.role === 'PIC' && profile.fullName) setPicName(profile.fullName);
+  }, [profile]);
 
   // Email destination & Sending state
   const [recipientEmail, setRecipientEmail] = React.useState<string>('aro-ais@eana.com.ar');
@@ -153,7 +161,7 @@ export const OaciFlightPlanModule: React.FC = () => {
           </tr>
           <tr>
             <td style="padding: 6px 10px; font-family: Arial, sans-serif; font-size: 10px; color: #334155;">
-              <strong>OPERADOR:</strong> MODENA AIR SERVICE (LQ-HEMS) | <strong>EMISIÓN:</strong> ${new Date().toLocaleString('es-AR')}
+              <strong>OPERADOR:</strong> MODENA AIR SERVICE | <strong>EMISIÓN:</strong> ${new Date().toLocaleString('es-AR')}
             </td>
           </tr>
         </table>

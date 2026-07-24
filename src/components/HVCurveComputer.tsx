@@ -259,8 +259,9 @@ export default function HVCurveComputer() {
           </AreaChart>
         </ResponsiveContainer>
         <p className="text-xs text-slate-500 mt-4 text-center leading-relaxed">
-          * Gráfico matemático que replica las curvas del manual (RFM Sección 5). <br/>
+          * Gráfico matemático de forma estilizada con fines de estudio — no es una transcripción del RFM. <br/>
           <strong>Nota:</strong> Incluye la zona prohibitiva a ras de piso para altas velocidades, y el bucle cerrado que permite operaciones rasantes y Hover IGE.
+          Para la curva limitante oficial consulte el RFM (Fig. 5-5 / Fig. 5-6) en Biblioteca ANAC &amp; RFM.
         </p>
       </div>
     </div>

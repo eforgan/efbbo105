@@ -7,7 +7,7 @@ export const MODENA_CHECKLISTS: ChecklistCategory[] = [
     title: '1. Inspección Pre-Vuelo & Cabina HEMS (Normal)',
     categoryType: 'normal',
     items: [
-      { id: 'np1', title: 'Documentación Vuelo & Licencias', detail: 'RAAC 135, Bitácora, Certificado Matrícula LQ-HEMS', isMandatory: true, completed: false, response: 'ABORDO & VIGENTE' },
+      { id: 'np1', title: 'Documentación Vuelo & Licencias', detail: 'RAAC 135, Bitácora, Certificado de Matrícula', isMandatory: true, completed: false, response: 'ABORDO & VIGENTE' },
       { id: 'np2', title: 'Inspección Estructural Cabeza Rotor Rígido', detail: 'Palas titanio/fibra vidrio sin fisuras, amortiguadores elastoméricos OK', isMandatory: true, completed: false, response: 'VERIFICADO' },
       { id: 'np3', title: 'Verificación Nivel Aceite Transmisión & Motores', detail: 'Transmisión principal y 2x Allison 250-C20B en nivel verde', isMandatory: true, completed: false, response: 'EN NIVEL' },
       { id: 'np4', title: 'Anclaje Longitudinal de Camilla HEMS', detail: 'Verificación traba 4 puntos y riel de desplazamiento cabina (+10 in)', isMandatory: true, completed: false, response: 'BLOQUEADO' },
@@ -30,7 +30,7 @@ export const MODENA_CHECKLISTS: ChecklistCategory[] = [
   // 2. MODENA BASE-SPECIFIC PROCEDURES
   {
     id: 'base-vista-neuquen',
-    title: '3. Protocolo Operativo Vaca Muerta / Contrato Vista (SAZN / Añelo)',
+    title: '3. Protocolo Operativo Vaca Muerta / Vista Energy (SAZN / Añelo)',
     categoryType: 'modena',
     items: [
       { id: 'vn1', title: 'Evaluación Viento Patagónico & Polvo', detail: 'Viento en Añelo / Rincón de los Sauces. Alineación de proa', isMandatory: true, completed: false, response: 'VERIFICADO' },
@@ -63,13 +63,13 @@ export const MODENA_CHECKLISTS: ChecklistCategory[] = [
   },
   {
     id: 'base-ypf-vmos',
-    title: '6. Operación HEMS Offshore YPF VMOS (DLV Seminole / Mar)',
+    title: '6. Operación HEMS Traza Gasoducto YPF VMOS (Gral. Roca - Punta Colorada - Boya 7)',
     categoryType: 'modena',
     items: [
       { id: 'yo1', title: 'Equipamiento PPE Individual & Balsa', detail: 'Traje estanco Dry Suit, EBS Air Pocket Plus, PLB 406MHz y balsa 6 pax', isMandatory: true, completed: false, response: 'EQUIPADO 100%' },
-      { id: 'yo2', title: 'Tiempo de Exposición Overwater (< 5.0 min)', detail: 'Cronómetro activo desde cruce de línea costera', isMandatory: true, completed: false, response: '< 5 MIN OK' },
-      { id: 'yo3', title: 'Autorización HLO Helideck DLV Seminole', detail: 'HLO confirma GREEN DECK y viento relativo estable en VHF Ch 16', isMandatory: true, completed: false, response: 'GREEN DECK' },
-      { id: 'yo4', title: 'Aproximación & Posado en Patines', detail: 'Freno rotor OFF, colectivo tope inferior, posado firme en red', isMandatory: true, completed: false, response: 'POSADO FIRME' },
+      { id: 'yo2', title: 'Tiempo de Exposición Overwater (< 5.0 min)', detail: 'Cronómetro activo desde cruce de línea costera en Punta Colorada hasta Boya 7', isMandatory: true, completed: false, response: '< 5 MIN OK' },
+      { id: 'yo3', title: 'Confirmación Punto de Retorno Boya 7 (GPS)', detail: 'Boya 7 a 7 km al este de Punta Colorada — no apta para aterrizaje, es el punto de retorno de la traza offshore del gasoducto', isMandatory: true, completed: false, response: 'CONFIRMADO GPS' },
+      { id: 'yo4', title: 'Seguimiento Traza Submarina & Retorno a Costa', detail: 'Referencia visual/GPS del trazado del ducto y retorno directo a Punta Colorada al alcanzar Boya 7', isMandatory: true, completed: false, response: 'TRAZA VERIFICADA' },
     ]
   },
 

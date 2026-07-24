@@ -1,5 +1,21 @@
 export type DisplayMode = 'glass' | 'nvg-green' | 'cockpit-red' | 'daylight';
 
+export interface LatLon {
+  lat: number;
+  lon: number;
+}
+
+export interface AerodromeRecord {
+  icao: string | null;
+  localCode: string | null;
+  name: string;
+  municipality: string;
+  lat: number;
+  lon: number;
+  elevFt: number | null;
+  kind: 'airport' | 'heliport';
+}
+
 export type MissionType = 
   | 'hems-neuquen-vista'
   | 'hems-rosario-utv'
@@ -73,7 +89,7 @@ export interface Waypoint {
   lon: number;
   altFt: number;
   isOverwater: boolean;
-  type: 'airfield' | 'helideck' | 'costal-entry' | 'hospital' | 'riverbank';
+  type: 'airfield' | 'helideck' | 'costal-entry' | 'hospital' | 'riverbank' | 'buoy';
 }
 
 export interface RouteLeg {
@@ -155,4 +171,14 @@ export interface FlightLogEntry {
   sicName?: string;
   landingsCount: number;
   notes: string;
+}
+
+export type CrewRole = 'PIC' | 'SIC' | 'medico' | 'despachante';
+
+export interface CrewProfile {
+  fullName: string;
+  role: CrewRole;
+  licenseNumber: string;
+  email: string;
+  phone: string;
 }

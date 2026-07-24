@@ -15,7 +15,7 @@ const NVG_LOCATIONS: NvgBaseLocation[] = [
   { id: 'sazn', name: 'SAZN - Neuquén / Añelo (Vaca Muerta)', lat: -38.9489, lon: -68.1558 },
   { id: 'saar', name: 'SAAR - Rosario (Base HEMS UTV Fluvial)', lat: -32.9036, lon: -60.7844 },
   { id: 'sabe', name: 'SABE - Buenos Aires (SAME AÉREO / Santojanni)', lat: -34.5592, lon: -58.4156 },
-  { id: 'sa21', name: 'SA21 - Sierra Grande / Punta Colorada (YPF VMOS Offshore)', lat: -41.6521, lon: -65.3562 },
+  { id: 'pc', name: 'Punta Colorada / Boya 7 (YPF VMOS Offshore)', lat: -41.6967, lon: -65.0233 },
 ];
 
 const NVG_BANNER: Record<NvgSuitability, { icon: React.ElementType; color: string; title: string; detail: string }> = {
@@ -93,7 +93,7 @@ export const AstronomyNvgModule: React.FC = () => {
           <select
             value={selectedLocId}
             onChange={(e) => setSelectedLocId(e.target.value)}
-            className="bg-slate-900 text-xs font-mono text-cyan-300 rounded px-3 py-1.5 border border-slate-700 outline-none cursor-pointer"
+            className="bg-slate-900 text-xs font-mono text-cyan-300 rounded px-3 py-1.5 border border-slate-700 outline-none cursor-pointer truncate max-w-[200px] sm:max-w-none"
           >
             {NVG_LOCATIONS.map(l => (
               <option key={l.id} value={l.id}>{l.name}</option>

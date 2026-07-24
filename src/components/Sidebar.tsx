@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import {
   Scale,
   Gauge,
@@ -21,10 +22,14 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Activity
+  Home,
+  HelpCircle,
+  UserCircle,
+  Route
 } from 'lucide-react';
 
 export type TabType =
+  | 'home'
   | 'wb'
   | 'perf'
   | 'hvcurve'
@@ -40,7 +45,10 @@ export type TabType =
   | 'windsim'
   | 'library'
   | 'logbook'
-  | 'dispatch';
+  | 'dispatch'
+  | 'manual'
+  | 'profile'
+  | 'navplan';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -69,6 +77,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navGroups: NavGroup[] = [
     {
+      groupName: 'INICIO',
+      items: [
+        { id: 'home', label: 'Inicio', icon: Home },
+        { id: 'profile', label: 'Mi Perfil', icon: UserCircle },
+      ],
+    },
+    {
       groupName: 'CÁLCULO & RENDIMIENTO',
       items: [
         { id: 'wb', label: 'Peso & Balanceo', icon: Scale },
@@ -80,6 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       groupName: 'NAVEGACIÓN & METEOROLOGÍA',
       items: [
+        { id: 'navplan', label: 'Planificación de Navegación', icon: Route, badge: 'ANAC' },
         { id: 'route', label: 'Rutas Modena HEMS', icon: MapPin },
         { id: 'fuel', label: 'Combustible & Autonomía', icon: Fuel },
         { id: 'weather', label: 'METAR / TAF & Viento', icon: CloudSun },
@@ -102,6 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'library', label: 'Biblioteca ANAC & RFM', icon: BookOpen },
         { id: 'logbook', label: 'Bitácora Digital', icon: Book },
         { id: 'dispatch', label: 'Despacho PDF Oficial', icon: FileCheck },
+        { id: 'manual', label: 'Manual de Operación', icon: HelpCircle },
       ],
     },
   ];
@@ -130,12 +147,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Sidebar Header */}
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
-              <Activity className="w-5 h-5 animate-pulse" />
+            <div className="bg-white rounded-lg p-1 shrink-0 flex items-center justify-center">
+              <Image src="/mas_logo.jpg" alt="Modena Air Service" width={120} height={42} className="h-6 w-auto" />
             </div>
             {(!isCollapsedDesktop || isOpenMobile) && (
               <div>
-                <span className="font-bold text-sm text-slate-100 block truncate">MODENA EFB</span>
                 <span className="text-[10px] text-cyan-400 block truncate">BO105 CBS-4</span>
               </div>
             )}

@@ -1,17 +1,19 @@
 'use client';
 
 import React from 'react';
-import { WBStation, WBSummary } from '../../types/efb';
-import { INITIAL_STATIONS } from '../../lib/bo105-specs';
+import { WBSummary } from '../../types/efb';
+import { BO105_SPECS } from '../../lib/bo105-specs';
 import { calculateWB } from '../../lib/calculations';
 import { StationSlider } from '../wb/StationSlider';
 import { CGGraph } from '../wb/CGGraph';
+import { useEfbData } from '../../context/EfbDataContext';
 import { AlertTriangle, CheckCircle2, RefreshCw, Table } from 'lucide-react';
 
 export const WeightAndBalanceModule: React.FC = () => {
-  const [stations, setStations] = React.useState<WBStation[]>(INITIAL_STATIONS);
+  const { stations, setStations } = useEfbData();
 
   const summary: WBSummary = React.useMemo(() => calculateWB(stations), [stations]);
+  const bewMomentKgM = ((BO105_SPECS.bewKg * BO105_SPECS.bewArmMm) / 1000).toFixed(1);
 
   const handleStationChange = (id: string, weightKg: number) => {
     setStations(prev => prev.map(s => s.id === id ? { ...s, weightKg } : s));
@@ -137,9 +139,9 @@ export const WeightAndBalanceModule: React.FC = () => {
             <tbody className="divide-y divide-slate-800 text-[11px]">
               <tr className="bg-slate-900/60 font-bold text-cyan-300">
                 <td className="py-2 px-2">Peso Vacío de Fábrica (BEW)</td>
-                <td className="py-2 px-2">3,250 mm</td>
-                <td className="py-2 px-2">1,460 kg</td>
-                <td className="py-2 px-2">4,745.0 kg·m</td>
+                <td className="py-2 px-2">{BO105_SPECS.bewArmMm.toLocaleString('es-AR')} mm</td>
+                <td className="py-2 px-2">{BO105_SPECS.bewKg.toLocaleString('es-AR')} kg</td>
+                <td className="py-2 px-2">{bewMomentKgM} kg·m</td>
                 <td className="py-2 px-2">Estructura Base</td>
               </tr>
               {stations.map((st) => {

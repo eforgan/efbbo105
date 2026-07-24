@@ -88,7 +88,7 @@ export const FlightPlannerModule: React.FC<FlightPlannerModuleProps> = ({ missio
           <select
             value={activeMissionKey}
             onChange={(e) => setUserSelectedKey(e.target.value)}
-            className="bg-slate-900 text-xs font-mono text-cyan-300 rounded px-3 py-1.5 border border-slate-700 outline-none cursor-pointer"
+            className="bg-slate-900 text-xs font-mono text-cyan-300 rounded px-3 py-1.5 border border-slate-700 outline-none cursor-pointer truncate max-w-[200px] sm:max-w-none"
           >
             <option value="hems-neuquen-vista">Ruta Neuquén / Vista (Vaca Muerta)</option>
             <option value="hems-rosario-utv">Ruta Rosario UTV (Río Paraná / Sanatorio Parque)</option>
