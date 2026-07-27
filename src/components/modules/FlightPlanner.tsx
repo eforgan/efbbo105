@@ -146,7 +146,7 @@ export const FlightPlannerModule: React.FC<FlightPlannerModuleProps> = ({ missio
               <YAxis yAxisId="left" domain={[0, 2500]} tick={{ fill: '#06b6d4', fontSize: 11 }} />
               <YAxis yAxisId="right" orientation="right" domain={[0, 400]} tick={{ fill: '#f59e0b', fontSize: 11 }} />
               <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }} />
-              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#cbd5e1' }} />
               <Area yAxisId="left" type="monotone" dataKey="altitudeFt" name="Altitud Terreno (ft)" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.2} />
               <Area yAxisId="right" type="monotone" dataKey="cumFuelBurnKg" name="Combustible Consumido (kg)" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.2} />
             </AreaChart>

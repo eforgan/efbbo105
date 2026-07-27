@@ -10,7 +10,8 @@ export function generateDispatchPDF(
   pilotName: string = 'Cap. Juan Pérez (PIC)',
   missionType: string = 'Neuquén Vaca Muerta (Vista Energy)',
   copilotName: string = '',
-  doctorName: string = ''
+  doctorName: string = '',
+  pilotSignatureDataUrl: string | null = null
 ) {
   const doc = new jsPDF();
   const dateStr = new Date().toLocaleString('es-AR');
@@ -163,6 +164,13 @@ export function generateDispatchPDF(
   y += 6;
   doc.rect(14, y, 85, 22);
   doc.rect(110, y, 86, 22);
+  if (pilotSignatureDataUrl) {
+    try {
+      doc.addImage(pilotSignatureDataUrl, 'PNG', 16, y + 1, 60, 14);
+    } catch {
+      // Malformed/unsupported image data — fall back to the blank signature box.
+    }
+  }
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.text('Firma y Aclaración Piloto al Mando (PIC)', 18, y + 18);

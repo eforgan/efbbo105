@@ -5,7 +5,9 @@ import { generateDispatchPDF } from '../../lib/pdf-generator';
 import { calculateWB, calculatePerformance, buildRouteLegs } from '../../lib/calculations';
 import { MODENA_WAYPOINTS, DEFAULT_WAYPOINTS } from '../../lib/bo105-specs';
 import { useEfbData } from '../../context/EfbDataContext';
-import { FileCheck, Download } from 'lucide-react';
+import { Waypoint } from '../../types/efb';
+import { SignaturePad } from '../SignaturePad';
+import { FileCheck, Download, PenLine } from 'lucide-react';
 
 const MISSION_LABELS: Record<string, string> = {
   'hems-neuquen-vista': 'Neuquén Vaca Muerta (Vista Energy)',
@@ -18,21 +20,22 @@ const MISSION_LABELS: Record<string, string> = {
 };
 
 export const FlightDispatchPDFModule: React.FC = () => {
-  const { stations, performanceInput, mission, profile } = useEfbData();
+  const { stations, performanceInput, mission, activeProfile, routePoints } = useEfbData();
   const [pilotName, setPilotName] = React.useState<string>('Cap. Juan Pérez (PIC)');
   const [copilotName, setCopilotName] = React.useState<string>('Of. Esteban Gómez (SIC)');
   const [doctorName, setDoctorName] = React.useState<string>('Dr. Carlos Rossi (Médico HEMS)');
+  const [pilotSignature, setPilotSignature] = React.useState<string | null>(null);
 
-  // Prefill whichever crew field matches the registered local profile's role, so a
-  // tripulante que se registró no tiene que retipear su nombre en cada despacho.
+  // Prefill whichever crew field matches the active roster profile's role, so a
+  // tripulante que eligió "vuela hoy" no tiene que retipear su nombre en cada despacho.
   React.useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect -- one-time sync from the local profile store on mount/change, not a render loop */
-    if (!profile || !profile.fullName) return;
-    if (profile.role === 'PIC') setPilotName(profile.fullName);
-    else if (profile.role === 'SIC') setCopilotName(profile.fullName);
-    else if (profile.role === 'medico') setDoctorName(profile.fullName);
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time sync from the roster store on mount/change, not a render loop */
+    if (!activeProfile || !activeProfile.fullName) return;
+    if (activeProfile.role === 'PIC') setPilotName(activeProfile.fullName);
+    else if (activeProfile.role === 'SIC') setCopilotName(activeProfile.fullName);
+    else if (activeProfile.role === 'medico') setDoctorName(activeProfile.fullName);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [profile]);
+  }, [activeProfile]);
 
   // Contract name follows the mission selected in the Header, so the printed dispatch
   // always matches the route/waypoints actually used for the navigation section below.
@@ -44,11 +47,20 @@ export const FlightDispatchPDFModule: React.FC = () => {
     takeoffWeightKg: summary.totalWeightKg,
   }), [performanceInput, summary]);
 
-  const waypoints = MODENA_WAYPOINTS[mission] || DEFAULT_WAYPOINTS;
+  // Prefer the route actually planned in "Planificación de Navegación" (main leg points,
+  // excluding alternates); fall back to the mission's default Modena waypoints otherwise.
+  const plannedWaypoints: Waypoint[] = React.useMemo(
+    () => routePoints.filter(p => !p.isAlternate).map(p => ({
+      id: p.id, name: `${p.code} - ${p.name}`, lat: p.lat, lon: p.lon, altFt: 0, isOverwater: false, type: 'airfield',
+    })),
+    [routePoints]
+  );
+  const usingPlannedRoute = plannedWaypoints.length >= 2;
+  const waypoints = usingPlannedRoute ? plannedWaypoints : (MODENA_WAYPOINTS[mission] || DEFAULT_WAYPOINTS);
   const legs = React.useMemo(() => buildRouteLegs(waypoints), [waypoints]);
 
   const handleExportPDF = () => {
-    generateDispatchPDF(summary, stations, perf, legs, pilotName, contractName, copilotName, doctorName);
+    generateDispatchPDF(summary, stations, perf, legs, pilotName, contractName, copilotName, doctorName, pilotSignature);
   };
 
   return (
@@ -88,6 +100,11 @@ export const FlightDispatchPDFModule: React.FC = () => {
               <p className="text-[10px] text-slate-500 mt-1">
                 Se define en el selector de Misión del encabezado — determina la ruta y exposición overwater del despacho.
               </p>
+              <p className={`text-[10px] mt-1 font-bold ${usingPlannedRoute ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {usingPlannedRoute
+                  ? `Usando ruta planificada (${plannedWaypoints.length} puntos) de "Planificación de Navegación".`
+                  : 'Sin ruta planificada — usando puntos por defecto de la misión. Armá la ruta en "Planificación de Navegación" para reflejarla acá.'}
+              </p>
             </div>
 
             <div>
@@ -118,6 +135,14 @@ export const FlightDispatchPDFModule: React.FC = () => {
                 onChange={(e) => setDoctorName(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200"
               />
+            </div>
+
+            <div className="pt-2 border-t border-slate-800">
+              <label className="text-slate-400 flex items-center gap-1.5 mb-1"><PenLine className="w-3.5 h-3.5" /> Conformidad PIC (Firma)</label>
+              <SignaturePad onChange={setPilotSignature} />
+              <p className="text-[10px] text-slate-500 mt-1">
+                {pilotSignature ? 'Firma capturada — se incluye en el PDF.' : 'Sin firmar — el PDF se genera igual, con el recuadro en blanco.'}
+              </p>
             </div>
           </div>
         </div>

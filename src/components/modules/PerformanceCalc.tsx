@@ -196,7 +196,7 @@ export const PerformanceCalcModule: React.FC = () => {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }}
                   />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#cbd5e1' }} />
                   <ReferenceLine y={input.takeoffWeightKg} stroke="#ef4444" strokeDasharray="3 3" label={{ value: `TOW: ${input.takeoffWeightKg}kg`, fill: '#ef4444', fontSize: 10 }} />
                   <Bar dataKey="higeMaxKg" name="Límite HIGE (kg)" fill="#06b6d4" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="hogeMaxKg" name="Límite HOGE (kg)" fill="#10b981" radius={[4, 4, 0, 0]} />

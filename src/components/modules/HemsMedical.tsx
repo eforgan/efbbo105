@@ -216,7 +216,7 @@ export const HemsMedicalModule: React.FC = () => {
                 <XAxis dataKey="flowLpm" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }} />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#cbd5e1' }} />
                 <Line type="monotone" dataKey="usableMin" name="Autonomía Útil (min)" stroke="#06b6d4" strokeWidth={2.5} dot={{ r: 4 }} />
                 <Line type="monotone" dataKey="totalMin" name="Autonomía Total (min)" stroke="#94a3b8" strokeDasharray="4 4" />
               </LineChart>

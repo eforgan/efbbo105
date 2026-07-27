@@ -217,7 +217,7 @@ export const OeiEmergencyPerfModule: React.FC = () => {
                 <XAxis dataKey="weightKg" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                 <YAxis domain={[0, 8000]} tick={{ fill: '#06b6d4', fontSize: 11 }} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }} />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#cbd5e1' }} />
                 <ReferenceLine x={`${takeoffWeightKg} kg`} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: `TOW ${takeoffWeightKg}kg`, fill: '#f59e0b', fontSize: 10 }} />
                 <Area type="monotone" dataKey="oeiCeilingFt" name="Techo Monomotor (ft)" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.25} />
               </AreaChart>
@@ -235,11 +235,11 @@ export const OeiEmergencyPerfModule: React.FC = () => {
               <LineChart data={driftDownProfileData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="time" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis domain={[0, 8000]} tick={{ fill: '#f43f5e', fontSize: 11 }} />
+                <YAxis domain={[0, 8000]} tick={{ fill: '#fb7185', fontSize: 11 }} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }} />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#cbd5e1' }} />
                 <ReferenceLine y={oeiCeilingFt} stroke="#10b981" strokeDasharray="3 3" label={{ value: `Techo OEI (${oeiCeilingFt}ft)`, fill: '#10b981', fontSize: 10 }} />
-                <Line type="monotone" dataKey="altitudeFt" name="Altitud Helicóptero (ft)" stroke="#f43f5e" strokeWidth={2.5} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="altitudeFt" name="Altitud Helicóptero (ft)" stroke="#fb7185" strokeWidth={2.5} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

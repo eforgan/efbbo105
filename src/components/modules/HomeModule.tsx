@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { TabType } from '../Sidebar';
 import { useEfbData } from '../../context/EfbDataContext';
 import {
-  ShieldAlert, Scale, Gauge, AlertOctagon, Flame, MapPin, Fuel, CloudSun, Moon, Compass,
+  Scale, Gauge, AlertOctagon, Flame, MapPin, Fuel, CloudSun, Moon, Compass,
   HeartPulse, CheckSquare, ShieldCheck, FileText, BookOpen, Book, FileCheck, HelpCircle,
   UserCircle, ArrowRight, Route
 } from 'lucide-react';
@@ -45,7 +45,7 @@ const GROUPS: { groupName: string; items: FeatureCardData[] }[] = [
   {
     groupName: 'Operación HEMS & Seguridad',
     items: [
-      { id: 'hems', icon: HeartPulse, title: 'Oxígeno UTV/SAME', description: 'Autonomía de oxígeno médico y checklist de seguridad de cabina HEMS (camilla, LOX, energía).' },
+      { id: 'hems', icon: HeartPulse, title: 'Oxígeno HEMS', description: 'Autonomía de oxígeno médico y checklist de seguridad de cabina HEMS (camilla, LOX, energía).' },
       { id: 'checklists', icon: CheckSquare, title: 'Listas QRH & Voz', description: 'Checklists normales, por base y de emergencia, con copiloto de voz (texto a voz).' },
       { id: 'risk', icon: ShieldCheck, title: 'Matriz Riesgo SMS OACI', description: 'Evaluación dinámica de amenazas operativas según la matriz 5x5 de severidad y probabilidad OACI.' },
     ],
@@ -62,7 +62,7 @@ const GROUPS: { groupName: string; items: FeatureCardData[] }[] = [
 ];
 
 export const HomeModule: React.FC<HomeModuleProps> = ({ onNavigate }) => {
-  const { profile } = useEfbData();
+  const { profiles } = useEfbData();
 
   return (
     <div className="p-4 space-y-6 max-w-5xl mx-auto font-sans">
@@ -82,15 +82,6 @@ export const HomeModule: React.FC<HomeModuleProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div className="bg-amber-950/40 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2 text-xs text-amber-300">
-          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-          <p>
-            Herramienta de referencia y entrenamiento. Los cálculos de performance, H-V y OEI son aproximaciones
-            propias no verificadas contra el RFM oficial vigente. No reemplaza el Manual de Vuelo, el MOP Modena
-            ni el juicio operativo del PIC.
-          </p>
-        </div>
-
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => onNavigate('manual')}
@@ -102,7 +93,7 @@ export const HomeModule: React.FC<HomeModuleProps> = ({ onNavigate }) => {
             onClick={() => onNavigate('profile')}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold rounded-lg text-xs flex items-center gap-2 cursor-pointer transition"
           >
-            <UserCircle className="w-4 h-4" /> {profile ? 'Ver Mi Perfil' : 'Registrarme'} <ArrowRight className="w-3.5 h-3.5" />
+            <UserCircle className="w-4 h-4" /> {profiles.length > 0 ? 'Ver Roster de Tripulantes' : 'Registrar Tripulante'} <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

@@ -19,24 +19,24 @@ const GENERAL_SECTIONS: ManualSection[] = [
     title: 'Inicio',
     body: [
       'Pantalla de bienvenida con un resumen de todos los módulos de la aplicación, agrupados por categoría. Cada tarjeta es un acceso directo: al hacer clic te lleva directamente a ese módulo.',
-      'Incluye accesos rápidos a este Manual de Operación y a "Mi Perfil".',
+      'Incluye accesos rápidos a este Manual de Operación y al Roster de Tripulantes.',
     ],
   },
   {
     icon: Layers,
     title: 'Datos Compartidos Entre Módulos',
     body: [
-      'La app mantiene tres datos en común entre pestañas: las estaciones de carga de Peso & Balanceo, las condiciones ambientales de Performance, y la Misión seleccionada en el encabezado.',
-      'Esto significa que si cargás el peso real del vuelo en "Peso & Balanceo" y las condiciones reales en "Performance HOGE/HIGE", el módulo "Despacho PDF Oficial" va a imprimir esos mismos valores — no valores de ejemplo. Lo mismo aplica a la ruta: cambiar la Misión en el selector del encabezado actualiza automáticamente la ruta usada en "Rutas Modena HEMS" y en el despacho.',
+      'La app mantiene en común entre pestañas: las estaciones de carga de Peso & Balanceo, las condiciones ambientales de Performance, la Misión seleccionada en el encabezado, la ruta armada en Planificación de Navegación y el tripulante activo del Roster.',
+      'Esto significa que si cargás el peso real del vuelo en "Peso & Balanceo", las condiciones reales en "Performance HOGE/HIGE" y la ruta en "Planificación de Navegación", el módulo "Despacho PDF Oficial" y el "Plan de Vuelo OACI" van a usar esos mismos valores — no valores de ejemplo.',
     ],
   },
   {
     icon: UserCircle,
-    title: 'Mi Perfil (Registro Local)',
+    title: 'Roster de Tripulantes',
     body: [
-      'Formulario para registrar tus datos como tripulante: nombre completo, rol (PIC / SIC / Médico / Despachante), licencia, email y teléfono.',
-      'Importante: este perfil se guarda solo en este dispositivo y navegador (localStorage), no en un servidor. No requiere contraseña ni conexión a internet. Sirve para autocompletar tu nombre en Despacho PDF, Plan de Vuelo OACI y Bitácora Digital según tu rol, evitando reescribirlo cada vez.',
-      'Si varias personas usan el mismo equipo, cada una puede actualizar el perfil antes de despachar su propio vuelo — el botón "Borrar Perfil" limpia los datos guardados.',
+      'Lista de tripulantes de este dispositivo: nombre completo, rol (PIC / SIC / Médico / Despachante), licencia, vencimiento de licencia y de certificado médico, email y teléfono.',
+      'Importante: este roster se guarda solo en este dispositivo y navegador (localStorage), no en un servidor. No requiere contraseña ni conexión a internet.',
+      'Elegí "Vuela Hoy" en el tripulante correspondiente para autocompletar su nombre en Despacho PDF, Plan de Vuelo OACI y Bitácora Digital según su rol. Si un tripulante tiene la licencia o el certificado médico vencido o por vencer en 30 días, aparece una alerta en la parte superior del módulo.',
     ],
   },
 ];
@@ -87,7 +87,11 @@ const NAV_SECTIONS: ManualSection[] = [
       'A medida que agregás puntos, la app arma los tramos automáticamente: rumbo magnético y distancia entre cada par de puntos consecutivos, con velocidad de crucero fija de 100 kt para calcular el tiempo parcial y total.',
       'Marcá uno o más puntos como "Alternativa" — la app calcula distancia y tiempo directo desde el destino a cada alternativa y señala la más lejana, que es la que se usa para el combustible de reserva.',
       'Con esos datos calcula el combustible programado: viaje + alternativa más lejana + reserva/espera (minutos configurables), y compara el total contra la capacidad utilizable del BO105 (450 kg).',
-      'Automáticamente adjunta el METAR en vivo de los aeródromos de la ruta que tengan código OACI de 4 letras, para tener la meteorología de los puntos más cercanos al vuelo planificado.',
+      'Automáticamente adjunta el METAR/TAF en vivo de los aeródromos de la ruta que tengan código OACI de 4 letras, para tener la meteorología de los puntos más cercanos al vuelo planificado. Los tiempos de vuelo se corrigen por el viento real reportado cuando hay dato disponible (ícono de viento en la tabla de tramos).',
+      'La app sugiere aeródromos/helipuertos cercanos al destino (hasta 60 NM) para agregarlos como alternativa con un clic, y muestra un mapa simple con la ruta y las alternativas.',
+      'Guardá la ruta actual con un nombre para reutilizarla después ("Planes de Vuelo Guardados") — persiste en este dispositivo.',
+      'Marcá qué tramo(s) llevan paciente a bordo: la app recalcula el peso estimado de ese tramo y la autonomía de oxígeno requerida (tramo + 30 min de reserva). Marcá qué tramo(s) son sobre agua para controlar la exposición overwater (< 5 min).',
+      'Al final, el panel de "Análisis de Riesgo & Decisión de Despacho" consolida ruta, combustible, meteorología y la matriz de riesgo OACI de la misión activa en un veredicto GO / GO con precaución / NO-GO. Podés guardar cada evaluación en un historial con fecha y hora.',
       'Nota: el listado de aeródromos proviene de una base de datos abierta (OurAirports), no del registro oficial completo de ANAC — verificá siempre contra el AIP/NOTAM vigente antes de operar.',
     ],
   },
@@ -136,7 +140,7 @@ const NAV_SECTIONS: ManualSection[] = [
 const HEMS_SECTIONS: ManualSection[] = [
   {
     icon: HeartPulse,
-    title: 'Oxígeno UTV/SAME',
+    title: 'Oxígeno HEMS',
     body: [
       'Calculadora de autonomía de oxígeno médico según volumen del cilindro, presión y flujo requerido por el paciente, con reserva del 20%.',
       'Incluye un checklist de seguridad de cabina médica (camilla bloqueada, cilindro LOX asegurado, alimentación eléctrica médica) y un puntaje clínico NEWS2 de referencia para el riesgo del paciente.',
@@ -167,6 +171,7 @@ const DESPACHO_SECTIONS: ManualSection[] = [
     title: 'Plan de Vuelo OACI EANA',
     body: [
       'Formulario reglamentario FPL 1801 (ARO-AIS EANA): completá indicativo, reglas y tipo de vuelo, equipo, ruta, aeródromos y datos de búsqueda y salvamento.',
+      'Si armaste una ruta en "Planificación de Navegación", el aeródromo de salida, destino, ruta (casilla 15), alternativas y tiempo estimado de vuelo (EET) se completan solos a partir de esa ruta.',
       'Podés copiar la cadena ATS cruda, descargar el formulario en PDF, o enviarlo por correo electrónico directamente a la oficina ARO-AIS (o a cualquier destinatario que indiques).',
     ],
   },
@@ -190,7 +195,9 @@ const DESPACHO_SECTIONS: ManualSection[] = [
     icon: FileCheck,
     title: 'Despacho PDF Oficial',
     body: [
-      'Genera la hoja de despacho de vuelo: usa el peso y balanceo, la performance y la ruta configurados en sus respectivos módulos (no valores de ejemplo), más los nombres de tripulación que completes acá.',
+      'Genera la hoja de despacho de vuelo: usa el peso y balanceo, la performance y la ruta configurados en sus respectivos módulos (no valores de ejemplo). Si armaste una ruta en "Planificación de Navegación" (2 o más puntos), el despacho la usa automáticamente en vez de los puntos por defecto de la misión — un aviso indica cuál ruta se está usando.',
+      'Los nombres de tripulación se completan solos según quién elegiste como "Vuela Hoy" en el Roster, según su rol; también podés escribirlos a mano.',
+      'Incluye un panel de firma digital para la conformidad del PIC (dibujada con mouse o dedo), que se embebe en el PDF generado. Si no se firma, el PDF se genera igual con el recuadro en blanco.',
       'El contrato/misión que se imprime sigue automáticamente a la Misión seleccionada en el encabezado. El documento incluye el disclaimer de que los cálculos son aproximaciones no verificadas contra el RFM oficial.',
     ],
   },

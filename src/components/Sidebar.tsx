@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       groupName: 'INICIO',
       items: [
         { id: 'home', label: 'Inicio', icon: Home },
-        { id: 'profile', label: 'Mi Perfil', icon: UserCircle },
+        { id: 'profile', label: 'Roster Tripulantes', icon: UserCircle },
       ],
     },
     {
@@ -106,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       groupName: 'OPERACIÓN HEMS & SEGURIDAD',
       items: [
-        { id: 'hems', label: 'Oxígeno UTV/SAME', icon: HeartPulse },
+        { id: 'hems', label: 'Oxígeno HEMS', icon: HeartPulse },
         { id: 'checklists', label: 'Listas QRH & Voz', icon: CheckSquare, badge: 'TTS Copilot' },
         { id: 'risk', label: 'Matriz Riesgo SMS OACI', icon: ShieldAlert },
       ],

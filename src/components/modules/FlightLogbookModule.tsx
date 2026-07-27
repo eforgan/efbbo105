@@ -50,7 +50,7 @@ const INITIAL_LOGS: FlightLogEntry[] = [
 const STORAGE_KEY = 'modena-efb-logbook-v1';
 
 export const FlightLogbookModule: React.FC = () => {
-  const { profile } = useEfbData();
+  const { activeProfile } = useEfbData();
   const [logs, setLogs] = React.useState<FlightLogEntry[]>(INITIAL_LOGS);
   const [hydrated, setHydrated] = React.useState(false);
   const [showForm, setShowForm] = React.useState(false);
@@ -92,11 +92,11 @@ export const FlightLogbookModule: React.FC = () => {
   const [landingsCount, setLandingsCount] = React.useState(1);
   const [notes, setNotes] = React.useState('');
 
-  // Prefill PIC name from the registered local profile, if this device's tripulante is a PIC.
+  // Prefill PIC name from the active crew roster profile, if it's flying as PIC today.
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from the local profile store on mount/change, not a render loop
-    if (profile && profile.role === 'PIC' && profile.fullName) setPicName(profile.fullName);
-  }, [profile]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from the roster store on mount/change, not a render loop
+    if (activeProfile && activeProfile.role === 'PIC' && activeProfile.fullName) setPicName(activeProfile.fullName);
+  }, [activeProfile]);
 
   const totalHours = logs.reduce((sum, l) => sum + l.flightTimeHours, 0).toFixed(1);
   const totalLandings = logs.reduce((sum, l) => sum + l.landingsCount, 0);

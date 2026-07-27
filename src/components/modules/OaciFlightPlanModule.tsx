@@ -4,9 +4,12 @@ import React from 'react';
 import { Send, Copy, Check, FileText, Mail, ShieldAlert, Plane, Download } from 'lucide-react';
 import { generateEanaFlightPlanPDF } from '../../lib/pdf-generator';
 import { useEfbData } from '../../context/EfbDataContext';
+import { calculateDistanceNm } from '../../lib/calculations';
+
+const FPL_CRUISE_SPEED_KT = 100;
 
 export const OaciFlightPlanModule: React.FC = () => {
-  const { profile } = useEfbData();
+  const { activeProfile, routePoints } = useEfbData();
   // Casilla 7 & 8
   const [callsign, setCallsign] = React.useState<string>('LQHEMS');
   const [flightRules, setFlightRules] = React.useState<string>('V');
@@ -44,11 +47,38 @@ export const OaciFlightPlanModule: React.FC = () => {
   const [picName, setPicName] = React.useState<string>('Cap. Juan Pérez (PIC)');
   const [aircraftColor] = React.useState<string>('BLANCO CON AZUL Y ROJO MODENA');
 
-  // Prefill PIC name from the registered local profile, if this device's tripulante is a PIC.
+  // Prefill PIC name from the active crew roster profile, if it's flying as PIC today.
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from the local profile store on mount/change, not a render loop
-    if (profile && profile.role === 'PIC' && profile.fullName) setPicName(profile.fullName);
-  }, [profile]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from the roster store on mount/change, not a render loop
+    if (activeProfile && activeProfile.role === 'PIC' && activeProfile.fullName) setPicName(activeProfile.fullName);
+  }, [activeProfile]);
+
+  // Prefill departure/destination/route/alternates/EET from the route planned in
+  // "Planificación de Navegación", so this FPL matches the actual plan instead of the
+  // hardcoded sample route.
+  React.useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time sync from the shared route plan on mount/change, not a render loop */
+    const main = routePoints.filter(p => !p.isAlternate);
+    const alternates = routePoints.filter(p => p.isAlternate);
+    if (main.length < 2) return;
+
+    const first = main[0];
+    const last = main[main.length - 1];
+    const middle = main.slice(1, -1);
+
+    setDepIcao(first.code);
+    setDestIcao(last.code);
+    setRouteText(middle.length > 0 ? middle.map(p => `DCT ${p.code}`).join(' ') : 'DCT');
+    if (alternates[0]) setAltn1Icao(alternates[0].code);
+    if (alternates[1]) setAltn2Icao(alternates[1].code);
+
+    const totalDistanceNm = main.slice(0, -1).reduce((sum, p, idx) => sum + calculateDistanceNm(p, main[idx + 1]), 0);
+    const totalMin = (totalDistanceNm / FPL_CRUISE_SPEED_KT) * 60;
+    const hh = Math.floor(totalMin / 60).toString().padStart(2, '0');
+    const mm = Math.round(totalMin % 60).toString().padStart(2, '0');
+    setEetTime(`${hh}${mm}`);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [routePoints]);
 
   // Email destination & Sending state
   const [recipientEmail, setRecipientEmail] = React.useState<string>('aro-ais@eana.com.ar');

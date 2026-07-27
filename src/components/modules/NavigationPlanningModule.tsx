@@ -1,17 +1,24 @@
 'use client';
 
 import React from 'react';
-import { Route, Search, Plus, Trash2, ArrowUp, ArrowDown, MapPinned, CloudSun, Fuel, Clock, AlertTriangle, CheckCircle2, RefreshCw, WifiOff, HeartPulse, Waves, ShieldAlert, ClipboardCheck } from 'lucide-react';
-import { AerodromeRecord, MetarStationInfo } from '../../types/efb';
-import { searchAerodromes, dmsToDecimal, DmsInput } from '../../lib/aerodromeSearch';
+import {
+  Route, Search, Plus, Trash2, ArrowUp, ArrowDown, MapPinned, CloudSun, Fuel, Clock,
+  AlertTriangle, CheckCircle2, RefreshCw, WifiOff, HeartPulse, Waves, ShieldAlert,
+  ClipboardCheck, Save, FolderOpen, Wind, History, Compass
+} from 'lucide-react';
+import { AerodromeRecord, MetarStationInfo, RoutePoint } from '../../types/efb';
+import { searchAerodromes, dmsToDecimal, findNearbyAerodromes, DmsInput } from '../../lib/aerodromeSearch';
 import { calculateDistanceNm, calculateHeadingDeg, calculateWB } from '../../lib/calculations';
 import { BO105_SPECS, OACI_RISK_FACTORS } from '../../lib/bo105-specs';
 import { useEfbData } from '../../context/EfbDataContext';
+import { RouteMap } from '../nav/RouteMap';
 import type { TafSummary } from '../../app/api/weather/route';
 
 const OXYGEN_RESERVE_MIN = 30;
 const OVERWATER_LIMIT_MIN = 5;
 const CROSSWIND_LIMIT_KT = 25;
+const NEARBY_ALTERNATE_RADIUS_NM = 60;
+const MIN_GROUNDSPEED_KT = 20;
 
 const CRUISE_SPEED_KT = 100;
 
@@ -24,34 +31,28 @@ const MISSION_RISK_KEYWORDS: Record<string, string[]> = {
   'hems-ypf-vmos': ['ypf', 'offshore', 'punta colorada'],
 };
 
-interface PlannedPoint {
-  id: string;
-  code: string;
-  name: string;
-  lat: number;
-  lon: number;
-  isAlternate: boolean;
-  isManual: boolean;
-}
-
-interface Leg {
+interface LegGeometry {
   key: string;
-  from: PlannedPoint;
-  to: PlannedPoint;
+  from: RoutePoint;
+  to: RoutePoint;
   distanceNm: number;
   headingDeg: number;
-  timeMin: number;
 }
 
-function buildLegs(points: PlannedPoint[]): Leg[] {
-  const legs: Leg[] = [];
+interface Leg extends LegGeometry {
+  timeMin: number;
+  groundSpeedKt: number;
+  windCorrected: boolean;
+}
+
+function buildLegGeometry(points: RoutePoint[]): LegGeometry[] {
+  const legs: LegGeometry[] = [];
   for (let i = 0; i < points.length - 1; i++) {
     const from = points[i];
     const to = points[i + 1];
     const distanceNm = calculateDistanceNm(from, to);
     const headingDeg = calculateHeadingDeg(from, to);
-    const timeMin = (distanceNm / CRUISE_SPEED_KT) * 60;
-    legs.push({ key: `${from.id}->${to.id}`, from, to, distanceNm, headingDeg, timeMin });
+    legs.push({ key: `${from.id}->${to.id}`, from, to, distanceNm, headingDeg });
   }
   return legs;
 }
@@ -59,8 +60,7 @@ function buildLegs(points: PlannedPoint[]): Leg[] {
 const emptyDms = (hemisphere: DmsInput['hemisphere']): DmsInput => ({ deg: 0, min: 0, sec: 0, hemisphere });
 
 export const NavigationPlanningModule: React.FC = () => {
-  const { stations, mission } = useEfbData();
-  const [points, setPoints] = React.useState<PlannedPoint[]>([]);
+  const { stations, mission, routePoints: points, setRoutePoints: setPoints, savedRoutePlans, setSavedRoutePlans, addRiskLogEntry, riskLog } = useEfbData();
   const [patientLegKeys, setPatientLegKeys] = React.useState<Set<string>>(new Set());
   const [overwaterLegKeys, setOverwaterLegKeys] = React.useState<Set<string>>(new Set());
   const [query, setQuery] = React.useState('');
@@ -77,6 +77,10 @@ export const NavigationPlanningModule: React.FC = () => {
   const [metars, setMetars] = React.useState<MetarStationInfo[]>([]);
   const [tafs, setTafs] = React.useState<TafSummary[]>([]);
   const [wxStatus, setWxStatus] = React.useState<'idle' | 'loading' | 'live' | 'offline'>('idle');
+
+  const [planName, setPlanName] = React.useState('');
+  const [saveFlash, setSaveFlash] = React.useState(false);
+  const [logFlash, setLogFlash] = React.useState(false);
 
   const addPoint = (rec: AerodromeRecord) => {
     setPoints(prev => [...prev, {
@@ -126,7 +130,7 @@ export const NavigationPlanningModule: React.FC = () => {
 
   const routePoints = React.useMemo(() => points.filter(p => !p.isAlternate), [points]);
   const alternatePoints = React.useMemo(() => points.filter(p => p.isAlternate), [points]);
-  const legs = React.useMemo(() => buildLegs(routePoints), [routePoints]);
+  const legGeometry = React.useMemo(() => buildLegGeometry(routePoints), [routePoints]);
 
   const togglePatientLeg = (key: string) => {
     setPatientLegKeys(prev => {
@@ -145,6 +149,25 @@ export const NavigationPlanningModule: React.FC = () => {
       return next;
     });
   };
+
+  // Wind-corrected leg time: use whichever endpoint's live METAR is available (departure
+  // preferred) to compute the headwind/tailwind component along the leg's heading, and
+  // adjust effective groundspeed from the fixed 100kt cruise TAS accordingly.
+  const legs: Leg[] = React.useMemo(() => {
+    return legGeometry.map(g => {
+      const metar = metars.find(m => m.icao === g.from.code) ?? metars.find(m => m.icao === g.to.code);
+      let groundSpeedKt = CRUISE_SPEED_KT;
+      let windCorrected = false;
+      if (metar) {
+        const angleRad = ((metar.windDirDeg - g.headingDeg) * Math.PI) / 180;
+        const headwindKt = metar.windSpeedKt * Math.cos(angleRad);
+        groundSpeedKt = Math.max(MIN_GROUNDSPEED_KT, CRUISE_SPEED_KT - headwindKt);
+        windCorrected = true;
+      }
+      const timeMin = (g.distanceNm / groundSpeedKt) * 60;
+      return { ...g, timeMin, groundSpeedKt, windCorrected };
+    });
+  }, [legGeometry, metars]);
 
   // Estimated weight per leg: base loading (crew, médico, equipo, bodega, combustible
   // real cargado en Peso & Balanceo) minus fuel already burned on prior legs, plus the
@@ -177,6 +200,7 @@ export const NavigationPlanningModule: React.FC = () => {
 
   const totalDistanceNm = legs.reduce((sum, l) => sum + l.distanceNm, 0);
   const totalTimeMin = legs.reduce((sum, l) => sum + l.timeMin, 0);
+  const anyLegWindCorrected = legs.some(l => l.windCorrected);
   const destination = routePoints[routePoints.length - 1] || null;
 
   const alternateLegs = React.useMemo(() => {
@@ -189,6 +213,25 @@ export const NavigationPlanningModule: React.FC = () => {
   }, [destination, alternatePoints]);
 
   const farthestAlternate = alternateLegs.reduce<typeof alternateLegs[number] | null>((max, cur) => (!max || cur.distanceNm > max.distanceNm) ? cur : max, null);
+
+  const nearbyAlternateSuggestions = React.useMemo(() => {
+    if (!destination) return [];
+    const alreadyAdded = new Set(points.map(p => p.code));
+    return findNearbyAerodromes({ lat: destination.lat, lon: destination.lon }, NEARBY_ALTERNATE_RADIUS_NM)
+      .filter(a => !alreadyAdded.has(a.icao || a.localCode || ''));
+  }, [destination, points]);
+
+  const addNearbyAsAlternate = (rec: AerodromeRecord & { distanceNm: number }) => {
+    setPoints(prev => [...prev, {
+      id: `${rec.icao || rec.localCode || rec.name}-${Date.now()}`,
+      code: rec.icao || rec.localCode || '—',
+      name: rec.name,
+      lat: rec.lat,
+      lon: rec.lon,
+      isAlternate: true,
+      isManual: false,
+    }]);
+  };
 
   const tripFuelKg = (totalTimeMin / 60) * fuelBurnKgH;
   const alternateFuelKg = farthestAlternate ? (farthestAlternate.timeMin / 60) * fuelBurnKgH : 0;
@@ -269,6 +312,34 @@ export const NavigationPlanningModule: React.FC = () => {
     loadWeather();
   }, [loadWeather]);
 
+  const handleSavePlan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planName.trim() || points.length === 0) return;
+    setSavedRoutePlans(prev => [{ id: `plan-${Date.now()}`, name: planName.trim(), savedAtIso: new Date().toISOString(), points }, ...prev].slice(0, 30));
+    setPlanName('');
+    setSaveFlash(true);
+    setTimeout(() => setSaveFlash(false), 2000);
+  };
+
+  const loadPlan = (planId: string) => {
+    const plan = savedRoutePlans.find(p => p.id === planId);
+    if (plan) setPoints(plan.points);
+  };
+
+  const deletePlan = (planId: string) => setSavedRoutePlans(prev => prev.filter(p => p.id !== planId));
+
+  const handleLogRiskAssessment = () => {
+    addRiskLogEntry({
+      mission,
+      routeSummary: points.length > 0 ? points.map(p => p.code).join(' - ') : 'Sin ruta',
+      verdict: goNoGoVerdict === 'SIN-DATOS' ? 'NO-GO' : goNoGoVerdict,
+      blockers: goNoGoBlockers,
+      cautions: goNoGoCautions,
+    });
+    setLogFlash(true);
+    setTimeout(() => setLogFlash(false), 2000);
+  };
+
   return (
     <div className="p-4 space-y-6 max-w-6xl mx-auto font-sans">
       <div className="glass-panel p-4 rounded-xl border border-slate-800 flex flex-wrap justify-between items-center gap-4 font-mono">
@@ -277,7 +348,7 @@ export const NavigationPlanningModule: React.FC = () => {
             <Route className="w-5 h-5 text-cyan-400" /> Planificación de Navegación
           </h2>
           <p className="text-xs text-slate-400">
-            Preparación de vuelo por tramos contra el listado de aeródromos, aeropuertos y helipuertos de Argentina — crucero fijo {CRUISE_SPEED_KT} kt.
+            Preparación de vuelo por tramos contra el listado de aeródromos, aeropuertos y helipuertos de Argentina — crucero fijo {CRUISE_SPEED_KT} kt TAS.
           </p>
         </div>
       </div>
@@ -377,6 +448,44 @@ export const NavigationPlanningModule: React.FC = () => {
         )}
       </div>
 
+      {/* Save / load route plans */}
+      <div className="glass-card p-4 rounded-xl border border-slate-800 space-y-3 font-mono text-xs">
+        <h3 className="text-xs font-bold text-slate-100 uppercase border-b border-slate-800 pb-2 flex items-center gap-2">
+          <Save className="w-4 h-4 text-cyan-400" /> Planes de Vuelo Guardados
+        </h3>
+        <form onSubmit={handleSavePlan} className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={planName}
+            onChange={(e) => setPlanName(e.target.value)}
+            placeholder="Nombre del plan (ej: Vista Energy - Añelo semanal)"
+            className="flex-1 min-w-[200px] bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200"
+          />
+          <button type="submit" disabled={points.length === 0} className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer">
+            <Save className="w-3.5 h-3.5" /> Guardar Plan Actual
+          </button>
+          {saveFlash && <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Guardado</span>}
+        </form>
+
+        {savedRoutePlans.length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            {savedRoutePlans.map(plan => (
+              <div key={plan.id} className="flex items-center justify-between gap-2 bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FolderOpen className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span className="font-bold text-slate-200 truncate">{plan.name}</span>
+                  <span className="text-slate-500 text-[10px] shrink-0">({plan.points.length} pts)</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => loadPlan(plan.id)} className="px-2 py-1 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-cyan-300 cursor-pointer">Cargar</button>
+                  <button onClick={() => deletePlan(plan.id)} className="p-1 text-rose-400 hover:text-rose-300 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Waypoint list */}
       {points.length > 0 && (
         <div className="glass-card p-4 rounded-xl border border-slate-800 space-y-2 font-mono text-xs">
@@ -399,14 +508,33 @@ export const NavigationPlanningModule: React.FC = () => {
               </div>
             </div>
           ))}
+
+          {nearbyAlternateSuggestions.length > 0 && (
+            <div className="pt-2 border-t border-slate-800 space-y-1.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Alternativas Cercanas al Destino (≤ {NEARBY_ALTERNATE_RADIUS_NM} NM)</span>
+              <div className="flex flex-wrap gap-1.5">
+                {nearbyAlternateSuggestions.map((r, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => addNearbyAsAlternate(r)}
+                    className="px-2 py-1 rounded-lg text-[10px] bg-slate-900/80 hover:bg-amber-950/40 border border-slate-700 hover:border-amber-500/40 text-slate-300 hover:text-amber-300 cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> {r.icao || r.localCode} — {r.name} ({r.distanceNm.toFixed(0)} NM)
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      <RouteMap routePoints={routePoints} alternatePoints={alternatePoints} />
 
       {/* Legs table */}
       {legs.length > 0 && (
         <div className="glass-card p-4 rounded-xl border border-slate-800 space-y-3 font-mono text-xs">
           <h3 className="font-bold text-slate-200 uppercase tracking-wider text-xs flex items-center gap-2">
-            <Clock className="w-4 h-4 text-cyan-400" /> Tramos de Navegación (Crucero {CRUISE_SPEED_KT} kt)
+            <Clock className="w-4 h-4 text-cyan-400" /> Tramos de Navegación (Crucero {CRUISE_SPEED_KT} kt TAS)
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -415,6 +543,7 @@ export const NavigationPlanningModule: React.FC = () => {
                   <th className="py-2 px-2">Tramo</th>
                   <th className="py-2 px-2">Rumbo</th>
                   <th className="py-2 px-2">Distancia</th>
+                  <th className="py-2 px-2">GS Efectiva</th>
                   <th className="py-2 px-2">Tiempo Parcial</th>
                   <th className="py-2 px-2">Peso Estimado</th>
                   <th className="py-2 px-2">Paciente a Bordo</th>
@@ -431,6 +560,9 @@ export const NavigationPlanningModule: React.FC = () => {
                       <td className="py-2 px-2 text-slate-200 font-medium">{leg.from.code} ➔ {leg.to.code}</td>
                       <td className="py-2 px-2 text-cyan-400 font-bold">{leg.headingDeg}° M</td>
                       <td className="py-2 px-2">{leg.distanceNm.toFixed(1)} NM</td>
+                      <td className="py-2 px-2">
+                        {Math.round(leg.groundSpeedKt)} kt{leg.windCorrected && <Wind className="w-3 h-3 inline ml-1 text-cyan-400" />}
+                      </td>
                       <td className="py-2 px-2">{leg.timeMin.toFixed(0)} min</td>
                       <td className={`py-2 px-2 font-bold ${overMtow ? 'text-rose-400' : 'text-slate-200'}`}>
                         {Math.round(w.weightAtStartKg)} kg{overMtow ? ' ⚠' : ''}
@@ -454,6 +586,7 @@ export const NavigationPlanningModule: React.FC = () => {
                   <td className="py-2.5 px-2 text-sm">TOTAL RUTA</td>
                   <td className="py-2.5 px-2"></td>
                   <td className="py-2.5 px-2 text-sm">{totalDistanceNm.toFixed(1)} NM</td>
+                  <td className="py-2.5 px-2"></td>
                   <td className="py-2.5 px-2 text-sm">{totalTimeMin.toFixed(0)} min</td>
                   <td className="py-2.5 px-2"></td>
                   <td className="py-2.5 px-2"></td>
@@ -462,6 +595,10 @@ export const NavigationPlanningModule: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {anyLegWindCorrected && (
+            <p className="text-[10px] text-cyan-400 flex items-center gap-1"><Wind className="w-3 h-3" /> Tiempos corregidos por viento real (METAR) donde hay dato disponible; sin dato se asume 100 kt sin viento.</p>
+          )}
 
           {anyLegOverMtow && (
             <div className="p-2.5 rounded-lg border border-rose-500/40 bg-rose-950/30 text-rose-300 flex items-center gap-2 text-[11px]">
@@ -475,7 +612,7 @@ export const NavigationPlanningModule: React.FC = () => {
               <p>
                 Tiempo con paciente a bordo: <strong>{patientLegTimeMin.toFixed(0)} min</strong>. Autonomía de oxígeno requerida
                 (tramo con paciente + {OXYGEN_RESERVE_MIN} min de reserva): <strong>{requiredO2Min.toFixed(0)} min</strong>.
-                Verificá en &ldquo;Oxígeno UTV/SAME&rdquo; que el cilindro cargado cubra esta autonomía.
+                Verificá en &ldquo;Oxígeno HEMS&rdquo; que el cilindro cargado cubra esta autonomía.
               </p>
             </div>
           )}
@@ -673,6 +810,38 @@ export const NavigationPlanningModule: React.FC = () => {
               <p className="text-[10px] text-slate-500">Ver detalle completo y mitigaciones en &ldquo;Matriz Riesgo SMS OACI&rdquo;.</p>
             </div>
           )}
+
+          <div className="pt-2 border-t border-slate-800 flex items-center gap-2">
+            <button onClick={handleLogRiskAssessment} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer">
+              <History className="w-3.5 h-3.5" /> Guardar Evaluación en Historial
+            </button>
+            {logFlash && <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Guardado</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Risk assessment history */}
+      {riskLog.length > 0 && (
+        <div className="glass-card p-4 rounded-xl border border-slate-800 space-y-2 font-mono text-xs">
+          <h3 className="font-bold text-slate-200 uppercase tracking-wider text-xs flex items-center gap-2">
+            <History className="w-4 h-4 text-cyan-400" /> Historial de Evaluaciones de Riesgo
+          </h3>
+          <div className="max-h-72 overflow-y-auto space-y-1.5">
+            {riskLog.map(entry => (
+              <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Compass className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span className="text-slate-400 text-[10px] shrink-0">{new Date(entry.savedAtIso).toLocaleString('es-AR')}</span>
+                  <span className="text-slate-300 truncate">{entry.routeSummary}</span>
+                </div>
+                <span className={`text-[9px] px-2 py-0.5 rounded font-bold shrink-0 ${
+                  entry.verdict === 'NO-GO' ? 'bg-rose-500/20 text-rose-300' : entry.verdict === 'PRECAUCION' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
+                }`}>
+                  {entry.verdict === 'PRECAUCION' ? 'GO CON PRECAUCIÓN' : entry.verdict}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

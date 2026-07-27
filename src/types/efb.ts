@@ -176,9 +176,39 @@ export interface FlightLogEntry {
 export type CrewRole = 'PIC' | 'SIC' | 'medico' | 'despachante';
 
 export interface CrewProfile {
+  id: string;
   fullName: string;
   role: CrewRole;
   licenseNumber: string;
   email: string;
   phone: string;
+  licenseExpiry?: string; // ISO date (yyyy-mm-dd)
+  medicalExpiry?: string; // ISO date (yyyy-mm-dd)
+}
+
+export interface RoutePoint {
+  id: string;
+  code: string;
+  name: string;
+  lat: number;
+  lon: number;
+  isAlternate: boolean;
+  isManual: boolean;
+}
+
+export interface SavedRoutePlan {
+  id: string;
+  name: string;
+  savedAtIso: string;
+  points: RoutePoint[];
+}
+
+export interface RiskLogEntry {
+  id: string;
+  savedAtIso: string;
+  mission: MissionType;
+  routeSummary: string;
+  verdict: 'GO' | 'PRECAUCION' | 'NO-GO';
+  blockers: string[];
+  cautions: string[];
 }

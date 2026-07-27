@@ -1,5 +1,6 @@
-import { AerodromeRecord } from '../types/efb';
+import { AerodromeRecord, LatLon } from '../types/efb';
 import { AR_AERODROMES } from '../data/arAerodromes';
+import { calculateDistanceNm } from './calculations';
 
 // Search the Argentina aerodrome/heliport reference list by ICAO code, local
 // (ANAC/IATA-style) 3-letter code, or free-text place/municipality name.
@@ -18,6 +19,16 @@ export function searchAerodromes(query: string, limit: number = 15): AerodromeRe
     a.municipality.toLowerCase().includes(qLower)
   );
   return matches.slice(0, limit);
+}
+
+// Finds aerodromes/heliports within radiusNm of a point, sorted nearest-first — used to
+// suggest candidate alternates near the planned destination.
+export function findNearbyAerodromes(origin: LatLon, radiusNm: number, limit: number = 8): (AerodromeRecord & { distanceNm: number })[] {
+  return AR_AERODROMES
+    .map(a => ({ ...a, distanceNm: calculateDistanceNm(origin, { lat: a.lat, lon: a.lon }) }))
+    .filter(a => a.distanceNm > 0.5 && a.distanceNm <= radiusNm)
+    .sort((a, b) => a.distanceNm - b.distanceNm)
+    .slice(0, limit);
 }
 
 export interface DmsInput {

@@ -197,7 +197,7 @@ export const FuelRangeModule: React.FC = () => {
                 <XAxis dataKey="time" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                 <YAxis domain={[0, BO105_SPECS.maxFuelKg]} tick={{ fill: '#94a3b8', fontSize: 11 }} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }} />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#cbd5e1' }} />
                 <ReferenceLine y={reserveFuelKg} stroke="#ef4444" strokeDasharray="3 3" label={{ value: `Reserva VFR (${reserveFuelKg}kg)`, fill: '#ef4444', fontSize: 10 }} />
                 <Area type="monotone" dataKey="remainingFuelKg" name="Combustible Restante (kg)" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.2} />
               </AreaChart>
