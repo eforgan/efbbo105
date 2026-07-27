@@ -517,7 +517,7 @@ export const NavigationPlanningModule: React.FC = () => {
                   <button
                     key={idx}
                     onClick={() => addNearbyAsAlternate(r)}
-                    className="px-2 py-1 rounded-lg text-[10px] bg-slate-900/80 hover:bg-amber-950/40 border border-slate-700 hover:border-amber-500/40 text-slate-300 hover:text-amber-300 cursor-pointer flex items-center gap-1"
+                    className="px-2 py-1 rounded-lg text-[10px] bg-slate-900/80 hover:bg-slate-800 border border-slate-700 hover:border-amber-500/40 text-slate-300 hover:text-amber-300 cursor-pointer flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" /> {r.icao || r.localCode} — {r.name} ({r.distanceNm.toFixed(0)} NM)
                   </button>

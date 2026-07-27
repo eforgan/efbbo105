@@ -95,6 +95,36 @@ body.theme-daylight [class*="bg-rose-950"] {
   color: #be123c !important;
 }
 
+/* Translucent status pills/badges (bg-{color}-500/NN — used for "CON PACIENTE",
+   "OVERWATER", flight-category, risk-level, etc.) render fine on the dark cockpit
+   background, but the same low-opacity tint over the day theme's white surfaces
+   pushes text/background contrast below WCAG AA — force the same solid,
+   verified-contrast treatment used above for the -950 status boxes. */
+body.theme-daylight [class*="bg-cyan-500/"],
+body.theme-daylight [class*="bg-sky-500/"] {
+  background-color: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  color: #0e7490 !important;
+}
+
+body.theme-daylight [class*="bg-emerald-500/"] {
+  background-color: #d1fae5 !important;
+  border-color: #059669 !important;
+  color: #047857 !important;
+}
+
+body.theme-daylight [class*="bg-amber-500/"] {
+  background-color: #fef3c7 !important;
+  border-color: #d97706 !important;
+  color: #92400e !important;
+}
+
+body.theme-daylight [class*="bg-rose-500/"] {
+  background-color: #ffe4e6 !important;
+  border-color: #e11d48 !important;
+  color: #be123c !important;
+}
+
 /* Text Color Contrast Adjustments for Day Mode */
 body.theme-daylight .text-slate-100,
 body.theme-daylight .text-slate-200,

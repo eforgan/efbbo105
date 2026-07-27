@@ -69,8 +69,10 @@ export const OaciFlightPlanModule: React.FC = () => {
     setDepIcao(first.code);
     setDestIcao(last.code);
     setRouteText(middle.length > 0 ? middle.map(p => `DCT ${p.code}`).join(' ') : 'DCT');
-    if (alternates[0]) setAltn1Icao(alternates[0].code);
-    if (alternates[1]) setAltn2Icao(alternates[1].code);
+    // Explicitly fall back (not just "leave whatever was there") so switching to a route
+    // with fewer alternates doesn't leave a stale alternate from a previously loaded plan.
+    setAltn1Icao(alternates[0]?.code ?? 'SAZN');
+    setAltn2Icao(alternates[1]?.code ?? 'SAOB');
 
     const totalDistanceNm = main.slice(0, -1).reduce((sum, p, idx) => sum + calculateDistanceNm(p, main[idx + 1]), 0);
     const totalMin = (totalDistanceNm / FPL_CRUISE_SPEED_KT) * 60;
@@ -364,28 +366,28 @@ export const OaciFlightPlanModule: React.FC = () => {
           <button
             type="button"
             onClick={() => handleLoadPreset('vista')}
-            className="px-3 py-1 bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 rounded border border-slate-700 transition cursor-pointer"
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded border border-slate-700 transition cursor-pointer"
           >
             Vista Neuquén
           </button>
           <button
             type="button"
             onClick={() => handleLoadPreset('utv')}
-            className="px-3 py-1 bg-slate-800 hover:bg-emerald-500/20 text-emerald-300 rounded border border-slate-700 transition cursor-pointer"
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded border border-slate-700 transition cursor-pointer"
           >
             UTV Rosario
           </button>
           <button
             type="button"
             onClick={() => handleLoadPreset('same')}
-            className="px-3 py-1 bg-slate-800 hover:bg-amber-500/20 text-amber-300 rounded border border-slate-700 transition cursor-pointer"
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded border border-slate-700 transition cursor-pointer"
           >
             SAME Aéreo
           </button>
           <button
             type="button"
             onClick={() => handleLoadPreset('ypf')}
-            className="px-3 py-1 bg-slate-800 hover:bg-rose-500/20 text-rose-300 rounded border border-slate-700 transition cursor-pointer"
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-rose-300 rounded border border-slate-700 transition cursor-pointer"
           >
             YPF Offshore
           </button>
