@@ -14,9 +14,14 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onChange }) => {
   const drawingRef = React.useRef(false);
   const hasInkRef = React.useRef(false);
 
+  // The canvas's drawing buffer (width/height attributes) is fixed, but it renders at
+  // whatever CSS size the responsive layout gives it (e.g. narrower on mobile) — map the
+  // pointer's CSS-pixel position into buffer coordinates so ink lands under the cursor.
   const getPos = (canvas: HTMLCanvasElement, e: React.PointerEvent) => {
     const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
