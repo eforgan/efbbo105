@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { RouteLeg, MissionType } from '../../types/efb';
+import { RouteLeg, MissionType, Waypoint } from '../../types/efb';
 import { MODENA_WAYPOINTS } from '../../lib/bo105-specs';
 import { buildRouteLegs } from '../../lib/calculations';
+import { useEfbData } from '../../context/EfbDataContext';
 import { Navigation as NavIcon, AlertTriangle, ShieldCheck, CloudSun, MapPin, AreaChart as AreaChartIcon } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
@@ -11,7 +12,13 @@ interface FlightPlannerModuleProps {
   mission?: MissionType;
 }
 
+// Saved plans from "Planificación de Navegación" are picked out of the same dropdown as the
+// 4 fixed Modena mission presets — prefixed so a plan id (client-generated, arbitrary string)
+// can never collide with a MissionType key.
+const SAVED_PLAN_PREFIX = 'plan:';
+
 export const FlightPlannerModule: React.FC<FlightPlannerModuleProps> = ({ mission = 'hems-neuquen-vista' }) => {
+  const { savedRoutePlans } = useEfbData();
   const [userSelectedKey, setUserSelectedKey] = React.useState<string | null>(null);
   const prevMissionRef = React.useRef(mission);
 
@@ -25,7 +32,17 @@ export const FlightPlannerModule: React.FC<FlightPlannerModuleProps> = ({ missio
   }, [mission]);
 
   const activeMissionKey = userSelectedKey || (mission && MODENA_WAYPOINTS[mission] ? mission : 'hems-neuquen-vista');
-  const currentWaypoints = MODENA_WAYPOINTS[activeMissionKey] || MODENA_WAYPOINTS['hems-neuquen-vista'];
+
+  const selectedPlan = activeMissionKey.startsWith(SAVED_PLAN_PREFIX)
+    ? savedRoutePlans.find(p => `${SAVED_PLAN_PREFIX}${p.id}` === activeMissionKey)
+    : null;
+
+  // Saved route points don't carry the terrain altitude / overwater / waypoint-type data the
+  // 4 hardcoded mission presets do (those were hand-curated) — default them out rather than
+  // guessing, so the altitude chart just reads flat instead of showing fabricated numbers.
+  const currentWaypoints: Waypoint[] = selectedPlan
+    ? selectedPlan.points.map(p => ({ id: p.id, name: `${p.code} - ${p.name}`, lat: p.lat, lon: p.lon, altFt: 0, isOverwater: false, type: 'airfield' as const }))
+    : (MODENA_WAYPOINTS[activeMissionKey] || MODENA_WAYPOINTS['hems-neuquen-vista']);
 
   const legs: RouteLeg[] = React.useMemo(() => buildRouteLegs(currentWaypoints, 110, 180), [currentWaypoints]);
 
@@ -79,7 +96,9 @@ export const FlightPlannerModule: React.FC<FlightPlannerModuleProps> = ({ missio
             <NavIcon className="w-5 h-5 text-cyan-400" /> Planificación de Ruta & Navegación Modena Air Service
           </h2>
           <p className="text-xs text-slate-400">
-            MBB BO105 CBS-4 • Misión Seleccionada: <span className="text-cyan-300 font-bold uppercase">{activeMissionKey.replace('hems-', '')}</span>
+            MBB BO105 CBS-4 • {selectedPlan
+              ? <>Plan Guardado: <span className="text-cyan-300 font-bold">{selectedPlan.name}</span></>
+              : <>Misión Seleccionada: <span className="text-cyan-300 font-bold uppercase">{activeMissionKey.replace('hems-', '')}</span></>}
           </p>
         </div>
 
@@ -90,13 +109,30 @@ export const FlightPlannerModule: React.FC<FlightPlannerModuleProps> = ({ missio
             onChange={(e) => setUserSelectedKey(e.target.value)}
             className="bg-slate-900 text-xs font-mono text-cyan-300 rounded px-3 py-1.5 border border-slate-700 outline-none cursor-pointer truncate max-w-[200px] sm:max-w-none"
           >
-            <option value="hems-neuquen-vista">Ruta Neuquén / Vista (Vaca Muerta)</option>
-            <option value="hems-rosario-utv">Ruta Rosario UTV (Río Paraná / Sanatorio Parque)</option>
-            <option value="hems-same-ba">Ruta SAME AÉREO (Buenos Aires Urbano)</option>
-            <option value="hems-ypf-vmos">Ruta YPF VMOS (Offshore / Golfo)</option>
+            <optgroup label="Misiones Modena">
+              <option value="hems-neuquen-vista">Ruta Neuquén / Vista (Vaca Muerta)</option>
+              <option value="hems-rosario-utv">Ruta Rosario UTV (Río Paraná / Sanatorio Parque)</option>
+              <option value="hems-same-ba">Ruta SAME AÉREO (Buenos Aires Urbano)</option>
+              <option value="hems-ypf-vmos">Ruta YPF VMOS (Offshore / Golfo)</option>
+            </optgroup>
+            {savedRoutePlans.length > 0 && (
+              <optgroup label="Planes Guardados (Planificación de Navegación)">
+                {savedRoutePlans.map(plan => (
+                  <option key={plan.id} value={`${SAVED_PLAN_PREFIX}${plan.id}`}>
+                    {plan.name} ({plan.points.length} pts)
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
       </div>
+
+      {selectedPlan && currentWaypoints.length < 2 && (
+        <div className="p-3 rounded-lg border border-amber-500/40 bg-amber-950/20 text-amber-300 flex items-center gap-2 text-xs font-mono">
+          <AlertTriangle className="w-4 h-4 shrink-0" /> Este plan guardado tiene menos de 2 puntos — no hay tramos para calcular. Completalo en &ldquo;Planificación de Navegación&rdquo;.
+        </div>
+      )}
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 font-mono">

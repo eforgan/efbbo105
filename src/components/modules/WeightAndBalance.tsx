@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { WBSummary } from '../../types/efb';
-import { BO105_SPECS } from '../../lib/bo105-specs';
+import { BO105_SPECS, getFleetAircraft } from '../../lib/bo105-specs';
 import { calculateWB } from '../../lib/calculations';
 import { StationSlider } from '../wb/StationSlider';
 import { CGGraph } from '../wb/CGGraph';
@@ -10,10 +10,11 @@ import { useEfbData } from '../../context/EfbDataContext';
 import { AlertTriangle, CheckCircle2, RefreshCw, Table } from 'lucide-react';
 
 export const WeightAndBalanceModule: React.FC = () => {
-  const { stations, setStations } = useEfbData();
+  const { stations, setStations, mission } = useEfbData();
+  const aircraft = React.useMemo(() => getFleetAircraft(mission), [mission]);
 
-  const summary: WBSummary = React.useMemo(() => calculateWB(stations), [stations]);
-  const bewMomentKgM = ((BO105_SPECS.bewKg * BO105_SPECS.bewArmMm) / 1000).toFixed(1);
+  const summary: WBSummary = React.useMemo(() => calculateWB(stations, aircraft.bewKg, BO105_SPECS.bewArmMm), [stations, aircraft.bewKg]);
+  const bewMomentKgM = ((aircraft.bewKg * BO105_SPECS.bewArmMm) / 1000).toFixed(1);
 
   const handleStationChange = (id: string, weightKg: number) => {
     setStations(prev => prev.map(s => s.id === id ? { ...s, weightKg } : s));
@@ -109,6 +110,9 @@ export const WeightAndBalanceModule: React.FC = () => {
           <h3 className="text-sm font-bold text-slate-200 font-mono flex items-center gap-2">
             Estaciones de Carga BO 105 CBS-4 Stretched (+10 in)
           </h3>
+          <p className="text-[10px] text-slate-500 font-mono -mt-2">
+            Matrícula <span className="text-cyan-300 font-bold">{aircraft.registration}</span> • {aircraft.color} • Contrato {aircraft.contract}
+          </p>
           {stations.map(st => (
             <StationSlider key={st.id} station={st} onChange={handleStationChange} />
           ))}
@@ -138,9 +142,9 @@ export const WeightAndBalanceModule: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-800 text-[11px]">
               <tr className="bg-slate-900/60 font-bold text-cyan-300">
-                <td className="py-2 px-2">Peso Vacío de Fábrica (BEW)</td>
+                <td className="py-2 px-2">Peso Básico Operativo (PBO/BEW) — {aircraft.registration}</td>
                 <td className="py-2 px-2">{BO105_SPECS.bewArmMm.toLocaleString('es-AR')} mm</td>
-                <td className="py-2 px-2">{BO105_SPECS.bewKg.toLocaleString('es-AR')} kg</td>
+                <td className="py-2 px-2">{aircraft.bewKg.toLocaleString('es-AR')} kg</td>
                 <td className="py-2 px-2">{bewMomentKgM} kg·m</td>
                 <td className="py-2 px-2">Estructura Base</td>
               </tr>

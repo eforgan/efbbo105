@@ -1,4 +1,4 @@
-import { AircraftSpecs, WBStation, Waypoint, RiskFactor, MetarStationInfo, SeaStateInfo } from '../types/efb';
+import { AircraftSpecs, FleetAircraft, MissionType, WBStation, Waypoint, RiskFactor, MetarStationInfo, SeaStateInfo } from '../types/efb';
 
 export const BO105_SPECS: AircraftSpecs = {
   model: 'MBB Bölkow BO 105 CBS-4 Stretched',
@@ -12,6 +12,31 @@ export const BO105_SPECS: AircraftSpecs = {
   rotorDiameterM: 9.84,
   vneKias: 145,
 };
+
+// The four real, individually-registered BO105 airframes affected to Modena's HEMS
+// contracts (matrícula, PBO/peso básico operativo, color, contrato — planilla BO105HEMS).
+// Each empty weight is this specific tail's real BEW, not the generic BO105_SPECS.bewKg
+// placeholder — feeds W&B/performance so the numbers match the aircraft actually assigned
+// to that mission, not an average airframe. bewArmMm/mtowKg/maxFuelKg aren't in the source
+// planilla (no per-tail measured arm data), so those stay the shared BO105_SPECS values.
+export const BO105_FLEET: Partial<Record<MissionType, FleetAircraft>> = {
+  'hems-neuquen-vista': { registration: 'LV-GID', bewKg: 1592, color: 'BLANCO Y VERDE', contract: 'VISTA', base: 'NEUQUÉN' },
+  'hems-rosario-utv': { registration: 'LV-GIE', bewKg: 1377, color: 'BLANCO Y AMARILLO', contract: 'UTV', base: 'ROSARIO' },
+  'hems-same-ba': { registration: 'LV-FKS', bewKg: 1557, color: 'BLANCO Y ROJO', contract: 'SAME', base: 'CABA' },
+  'hems-ypf-vmos': { registration: 'LV-CSM', bewKg: 1592.5, color: 'BLANCO Y NARANJA', contract: 'YPF VMOS', base: 'SIERRA GRANDE' },
+};
+
+// Missions without a dedicated tail (entrenamiento, onshore/offshore genéricos) fall back to
+// the generic type spec instead of a real registration.
+export function getFleetAircraft(mission: MissionType): FleetAircraft {
+  return BO105_FLEET[mission] ?? {
+    registration: 'LV-HEMS',
+    bewKg: BO105_SPECS.bewKg,
+    color: 'BLANCO CON AZUL Y ROJO MODENA',
+    contract: 'ENTRENAMIENTO',
+    base: 'N/A',
+  };
+}
 
 // Longitudinal CG Envelope for BO 105 CBS-4 (Station mm vs Weight kg)
 export const CG_ENVELOPE_POINTS = [

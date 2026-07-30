@@ -3,7 +3,7 @@
 import React from 'react';
 import { generateDispatchPDF } from '../../lib/pdf-generator';
 import { calculateWB, calculatePerformance, buildRouteLegs } from '../../lib/calculations';
-import { MODENA_WAYPOINTS, DEFAULT_WAYPOINTS } from '../../lib/bo105-specs';
+import { MODENA_WAYPOINTS, DEFAULT_WAYPOINTS, getFleetAircraft } from '../../lib/bo105-specs';
 import { useEfbData } from '../../context/EfbDataContext';
 import { Waypoint } from '../../types/efb';
 import { SignaturePad } from '../SignaturePad';
@@ -40,8 +40,9 @@ export const FlightDispatchPDFModule: React.FC = () => {
   // Contract name follows the mission selected in the Header, so the printed dispatch
   // always matches the route/waypoints actually used for the navigation section below.
   const contractName = MISSION_LABELS[mission] || MISSION_LABELS['hems-neuquen-vista'];
+  const aircraft = React.useMemo(() => getFleetAircraft(mission), [mission]);
 
-  const summary = React.useMemo(() => calculateWB(stations), [stations]);
+  const summary = React.useMemo(() => calculateWB(stations, aircraft.bewKg), [stations, aircraft.bewKg]);
   const perf = React.useMemo(() => calculatePerformance({
     ...performanceInput,
     takeoffWeightKg: summary.totalWeightKg,
@@ -60,7 +61,7 @@ export const FlightDispatchPDFModule: React.FC = () => {
   const legs = React.useMemo(() => buildRouteLegs(waypoints), [waypoints]);
 
   const handleExportPDF = () => {
-    generateDispatchPDF(summary, stations, perf, legs, pilotName, contractName, copilotName, doctorName, pilotSignature);
+    generateDispatchPDF(summary, stations, perf, legs, pilotName, contractName, copilotName, doctorName, pilotSignature, aircraft);
   };
 
   return (
@@ -152,7 +153,7 @@ export const FlightDispatchPDFModule: React.FC = () => {
           <div className="border-b border-slate-700 pb-3 flex justify-between items-center">
             <div>
               <h4 className="font-bold text-sm text-cyan-400">DESPACHO DE VUELO HEMS - MODENA AIR SERVICE</h4>
-              <p className="text-[10px] text-slate-400">Operador: Modena Air Service • BO105 CBS-4 Stretched</p>
+              <p className="text-[10px] text-slate-400">Matrícula {aircraft.registration} • {aircraft.color} • BO105 CBS-4 Stretched</p>
             </div>
             <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs px-2.5 py-1 rounded font-bold">
               APROBADO RAAC 135

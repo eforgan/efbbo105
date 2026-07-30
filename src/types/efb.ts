@@ -38,6 +38,18 @@ export interface AircraftSpecs {
   vneKias: number; // 145 KIAS
 }
 
+// One real, individually-registered airframe per Modena contract (see BO105_FLEET in
+// bo105-specs.ts) — distinct from AircraftSpecs above, which is the type-level spec shared
+// by the whole BO105 CBS-4 fleet. PBO (Peso Básico Operativo) is this tail's actual empty
+// weight, which differs airframe to airframe with equipment fit-out.
+export interface FleetAircraft {
+  registration: string; // e.g. "LV-GID"
+  bewKg: number; // PBO — Peso Básico Operativo real de esta matrícula
+  color: string;
+  contract: string;
+  base: string;
+}
+
 export interface WBStation {
   id: string;
   name: string;

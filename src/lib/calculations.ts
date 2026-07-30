@@ -1,7 +1,10 @@
 import { WBStation, WBSummary, PerformanceInput, PerformanceResult, Waypoint, RouteLeg, OxygenCalculation, LatLon } from '../types/efb';
 import { BO105_SPECS } from './bo105-specs';
 
-export function calculateWB(stations: WBStation[]): WBSummary {
+// bewKg/bewArmMm default to the generic type spec, but callers with a real assigned tail
+// (see getFleetAircraft in bo105-specs.ts) should pass that airframe's actual BEW — empty
+// weight varies airframe to airframe with equipment fit-out.
+export function calculateWB(stations: WBStation[], bewKg: number = BO105_SPECS.bewKg, bewArmMm: number = BO105_SPECS.bewArmMm): WBSummary {
   let payloadWeight = 0;
   let payloadMoment = 0;
   let fuelWeight = 0;
@@ -18,8 +21,8 @@ export function calculateWB(stations: WBStation[]): WBSummary {
     }
   });
 
-  const bewMoment = (BO105_SPECS.bewKg * BO105_SPECS.bewArmMm) / 1000;
-  const zeroFuelWeightKg = BO105_SPECS.bewKg + payloadWeight;
+  const bewMoment = (bewKg * bewArmMm) / 1000;
+  const zeroFuelWeightKg = bewKg + payloadWeight;
   const zeroFuelMomentKgM = bewMoment + payloadMoment;
   const zeroFuelCgMm = zeroFuelWeightKg > 0 ? (zeroFuelMomentKgM * 1000) / zeroFuelWeightKg : 0;
 

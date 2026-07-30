@@ -1,6 +1,10 @@
 import jsPDF from 'jspdf';
-import { WBSummary, WBStation, PerformanceResult, RouteLeg } from '../types/efb';
+import { WBSummary, WBStation, PerformanceResult, RouteLeg, FleetAircraft } from '../types/efb';
 import { BO105_SPECS } from './bo105-specs';
+
+const DEFAULT_AIRCRAFT: FleetAircraft = {
+  registration: 'LV-HEMS', bewKg: BO105_SPECS.bewKg, color: 'BLANCO CON AZUL Y ROJO MODENA', contract: 'MODENA', base: 'N/A',
+};
 
 export function generateDispatchPDF(
   summary: WBSummary,
@@ -11,7 +15,8 @@ export function generateDispatchPDF(
   missionType: string = 'Neuquén Vaca Muerta (Vista Energy)',
   copilotName: string = '',
   doctorName: string = '',
-  pilotSignatureDataUrl: string | null = null
+  pilotSignatureDataUrl: string | null = null,
+  aircraft: FleetAircraft = DEFAULT_AIRCRAFT
 ) {
   const doc = new jsPDF();
   const dateStr = new Date().toLocaleString('es-AR');
@@ -29,7 +34,7 @@ export function generateDispatchPDF(
   doc.setFont('helvetica', 'normal');
   doc.text('HOJA DE DESPACHO OFICIAL, PESO & BALANCEO Y PERFORMANCE RAAC 135 HEMS', 14, 21);
   doc.text(`Fecha: ${dateStr}`, 135, 21);
-  doc.text('MBB BÖLKOW BO105 CBS-4 STRETCHED', 14, 27);
+  doc.text(`MBB BÖLKOW BO105 CBS-4 STRETCHED - MATRÍCULA ${aircraft.registration}`, 14, 27);
 
   // Aircraft & Mission Info
   doc.setTextColor(0, 0, 0);
@@ -39,8 +44,8 @@ export function generateDispatchPDF(
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Aeronave: MBB Bölkow BO105 CBS-4 Stretched (+10 in)`, 14, 47);
-  doc.text(`Operador: Modena Air Service`, 14, 53);
+  doc.text(`Aeronave: MBB Bölkow BO105 CBS-4 Stretched (+10 in) — ${aircraft.registration}`, 14, 47);
+  doc.text(`Operador: Modena Air Service — ${aircraft.color}`, 14, 53);
   doc.text(`Piloto al Mando (PIC): ${pilotName}`, 14, 59);
   doc.text(`Contrato / Operación: ${missionType}`, 110, 47);
   doc.text(`MTOW Máximo: 2,500 kg`, 110, 53);
@@ -69,10 +74,10 @@ export function generateDispatchPDF(
 
   y += 6;
   doc.setFont('helvetica', 'normal');
-  const bewMomentKgM = ((BO105_SPECS.bewKg * BO105_SPECS.bewArmMm) / 1000).toFixed(1);
-  doc.text('Peso Básico Vacío (BEW)', 16, y);
+  const bewMomentKgM = ((aircraft.bewKg * BO105_SPECS.bewArmMm) / 1000).toFixed(1);
+  doc.text(`Peso Básico Operativo (PBO/BEW) — ${aircraft.registration}`, 16, y);
   doc.text(BO105_SPECS.bewArmMm.toString(), 110, y);
-  doc.text(BO105_SPECS.bewKg.toString(), 140, y);
+  doc.text(aircraft.bewKg.toString(), 140, y);
   doc.text(bewMomentKgM, 170, y);
 
   stations.forEach(st => {

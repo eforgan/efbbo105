@@ -9,7 +9,7 @@ import {
 import { AerodromeRecord, MetarStationInfo, RoutePoint } from '../../types/efb';
 import { searchAerodromes, dmsToDecimal, findNearbyAerodromes, DmsInput } from '../../lib/aerodromeSearch';
 import { calculateDistanceNm, calculateHeadingDeg, calculateMidpoint, calculateWB } from '../../lib/calculations';
-import { BO105_SPECS, OACI_RISK_FACTORS } from '../../lib/bo105-specs';
+import { BO105_SPECS, OACI_RISK_FACTORS, getFleetAircraft } from '../../lib/bo105-specs';
 import { useEfbData } from '../../context/EfbDataContext';
 import { SyncBadge } from '../SyncBadge';
 import { RouteMap } from '../nav/RouteMap';
@@ -173,9 +173,10 @@ export const NavigationPlanningModule: React.FC = () => {
   // Estimated weight per leg: base loading (crew, médico, equipo, bodega, combustible
   // real cargado en Peso & Balanceo) minus fuel already burned on prior legs, plus the
   // patient/stretcher weight only on the leg(s) marked "Paciente a Bordo".
+  const aircraft = React.useMemo(() => getFleetAircraft(mission), [mission]);
   const patientStation = stations.find(s => s.id === 'patient-stretcher');
   const patientWeightKg = patientStation?.weightKg ?? 0;
-  const baseWithoutPatientKg = calculateWB(stations.filter(s => s.id !== 'patient-stretcher')).totalWeightKg;
+  const baseWithoutPatientKg = calculateWB(stations.filter(s => s.id !== 'patient-stretcher'), aircraft.bewKg).totalWeightKg;
 
   const legWeights = React.useMemo(() => {
     const { rows } = legs.reduce<{ rows: { key: string; hasPatient: boolean; weightAtStartKg: number }[]; fuelBurnedKg: number }>(

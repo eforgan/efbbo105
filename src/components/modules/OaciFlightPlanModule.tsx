@@ -4,8 +4,10 @@ import React from 'react';
 import { Copy, Check, FileText, Share2, ShieldAlert, Plane, Download, PenLine, Stethoscope } from 'lucide-react';
 import { buildEanaFlightPlanDoc, eanaFlightPlanFileName, generateEanaFlightPlanPDF } from '../../lib/pdf-generator';
 import { useEfbData } from '../../context/EfbDataContext';
+import { getFleetAircraft } from '../../lib/bo105-specs';
 import { calculateDistanceNm, calculateHeadingDeg, calculateVfrCruisingLevel } from '../../lib/calculations';
 import { SignaturePad } from '../SignaturePad';
+import { MissionType } from '../../types/efb';
 
 // Debe coincidir con el crucero fijo de "Planificación de Navegación" (CRUISE_SPEED_KT):
 // la Casilla 15 (velocidad) y la Casilla 16 (EET) de este FPL se calculan sobre la misma
@@ -41,10 +43,22 @@ function withOffshoreGearNote(text: string, maritime: boolean): string {
   return stripped ? `${OFFSHORE_GEAR_NOTE} / ${stripped}` : OFFSHORE_GEAR_NOTE;
 }
 
+// Keeps the REG/ token in Casilla 18 pointed at whichever tail is actually assigned to the
+// active mission (see BO105_FLEET), the same way STS/HOSP tracks the sanitario toggle.
+// Replaced in place — or inserted right before RMK/ when there's no REG/ yet — so it stays
+// between NAV/ and RMK/, per the item 18 field ordering convention, instead of getting
+// shoved after the remarks.
+function withRegistration(text: string, registration: string): string {
+  if (/REG\/\S+/i.test(text)) return text.replace(/REG\/\S+/i, `REG/${registration}`);
+  if (/RMK\//i.test(text)) return text.replace(/RMK\//i, `REG/${registration} RMK/`);
+  return `${text} REG/${registration}`.trim();
+}
+
 export const OaciFlightPlanModule: React.FC = () => {
-  const { activeProfile, routePoints } = useEfbData();
+  const { activeProfile, routePoints, mission } = useEfbData();
+  const aircraft = React.useMemo(() => getFleetAircraft(mission), [mission]);
   // Casilla 7 & 8
-  const [callsign, setCallsign] = React.useState<string>('LQHEMS');
+  const [callsign, setCallsign] = React.useState<string>('LVGID');
   const [flightRules, setFlightRules] = React.useState<string>('V');
   const [flightType, setFlightType] = React.useState<string>('N');
   // Naturaleza de la operación: no es una letra de Casilla 8 (esas son S/N/G/M/X), se declara
@@ -80,13 +94,13 @@ export const OaciFlightPlanModule: React.FC = () => {
 
   // Casilla 18
   const [otherInfo, setOtherInfo] = React.useState<string>(
-    'PBN/A1 NAV/RNV1 REG/LQHEMS RMK/OPERACION HEMS URGENCIA MEDICA MODENA AIR SERVICE'
+    'PBN/A1 NAV/RNV1 REG/LVGID RMK/OPERACION HEMS URGENCIA MEDICA MODENA AIR SERVICE'
   );
 
   // Casilla 19 - Autonomía, Personas a Bordo
   const [enduranceHours, setEnduranceHours] = React.useState<string>('0230');
   const [pobCount, setPobCount] = React.useState<number>(4);
-  const [aircraftColor] = React.useState<string>('BLANCO CON AZUL Y ROJO MODENA');
+  const [aircraftColor, setAircraftColor] = React.useState<string>('BLANCO Y VERDE');
   const [pilotSignature, setPilotSignature] = React.useState<string | null>(null);
 
   // Casilla 19 - Equipo de emergencia y supervivencia (R/, S/, J/, D/)
@@ -123,6 +137,17 @@ export const OaciFlightPlanModule: React.FC = () => {
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [activeProfile]);
+
+  // Sincroniza matrícula (Casilla 7 + REG/ en Casilla 18) y color de aeronave (Casilla 19 A/)
+  // con la aeronave real asignada a la misión activa (BO105_FLEET) — cada contrato Modena
+  // tiene su propia matrícula, no un genérico "LQHEMS".
+  React.useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time sync from the active mission's assigned tail on mount/change, not a render loop */
+    setCallsign(aircraft.registration.replace('-', ''));
+    setAircraftColor(aircraft.color);
+    setOtherInfo(prev => withRegistration(prev, aircraft.registration.replace('-', '')));
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [aircraft]);
 
   // Mantiene el indicador STS/HOSP de Casilla 18 sincronizado con la naturaleza declarada,
   // sin pisar el resto del texto libre que haya cargado el despachante.
@@ -196,8 +221,17 @@ export const OaciFlightPlanModule: React.FC = () => {
   const [shareResult, setShareResult] = React.useState<{ success: boolean; message: string } | null>(null);
   const [isSharing, setIsSharing] = React.useState<boolean>(false);
 
-  // Load Preset by Base Contract
+  // Load Preset by Base Contract — each contract has its own real assigned tail (BO105_FLEET),
+  // so loading a preset also switches callsign/color to that aircraft regardless of whichever
+  // mission happens to be selected in the header.
   const handleLoadPreset = (preset: 'vista' | 'utv' | 'same' | 'ypf') => {
+    const presetMissions: Record<'vista' | 'utv' | 'same' | 'ypf', MissionType> = {
+      vista: 'hems-neuquen-vista', utv: 'hems-rosario-utv', same: 'hems-same-ba', ypf: 'hems-ypf-vmos',
+    };
+    const presetAircraft = getFleetAircraft(presetMissions[preset]);
+    const presetCallsign = presetAircraft.registration.replace('-', '');
+    setCallsign(presetCallsign);
+    setAircraftColor(presetAircraft.color);
     setSurvivalMaritime(preset === 'ypf');
     if (preset === 'vista') {
       setDepIcao('SAZN');
@@ -206,7 +240,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0045');
       setAltn1Icao('SAZN');
       setAltn2Icao('SAOB');
-      setOtherInfo(withStsIndicator('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/CONTRATO VISTA VACA MUERTA HEMS MODENA', flightNature));
+      setOtherInfo(withStsIndicator(withRegistration('PBN/A1 NAV/RNV1 RMK/CONTRATO VISTA VACA MUERTA HEMS MODENA', presetCallsign), flightNature));
     } else if (preset === 'utv') {
       setDepIcao('SAAR');
       setDestIcao('HSP');
@@ -214,7 +248,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0030');
       setAltn1Icao('SAAR');
       setAltn2Icao('VIC');
-      setOtherInfo(withStsIndicator('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/OPERACION UTV ROSARIO SANATORIO PARQUE', flightNature));
+      setOtherInfo(withStsIndicator(withRegistration('PBN/A1 NAV/RNV1 RMK/OPERACION UTV ROSARIO SANATORIO PARQUE', presetCallsign), flightNature));
     } else if (preset === 'same') {
       setDepIcao('SABE');
       setDestIcao('HBR');
@@ -222,7 +256,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0025');
       setAltn1Icao('SADF');
       setAltn2Icao('SABE');
-      setOtherInfo(withStsIndicator('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/OPERACION SAME AEREO CÓDIGO ROJO URBANO', flightNature));
+      setOtherInfo(withStsIndicator(withRegistration('PBN/A1 NAV/RNV1 RMK/OPERACION SAME AEREO CÓDIGO ROJO URBANO', presetCallsign), flightNature));
     } else if (preset === 'ypf') {
       setDepIcao('SA21');
       setDestIcao('SEMINOLE');
@@ -230,7 +264,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0035');
       setAltn1Icao('SAVY');
       setAltn2Icao('SA21');
-      setOtherInfo(withStsIndicator('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/YPF VMOS OFFSHORE OVERWATER DLV SEMINOLE', flightNature));
+      setOtherInfo(withStsIndicator(withRegistration('PBN/A1 NAV/RNV1 RMK/YPF VMOS OFFSHORE OVERWATER DLV SEMINOLE', presetCallsign), flightNature));
     }
   };
 
