@@ -159,6 +159,8 @@ export interface SeaStateInfo {
   ditchingStatus: 'APTO' | 'PRECAUCION' | 'RIESGO_ALTO';
 }
 
+// Cached locally and synced with the shared Neon table behind /api/flight-logs, same
+// pattern as CrewProfile above: client-generated `id`, `updatedAt` absent until first sync.
 export interface FlightLogEntry {
   id: string;
   date: string;
@@ -171,19 +173,30 @@ export interface FlightLogEntry {
   sicName?: string;
   landingsCount: number;
   notes: string;
+  updatedAt?: string;
 }
 
 export type CrewRole = 'PIC' | 'SIC' | 'medico' | 'despachante';
 
+export type PilotLicenseType = 'PCH' | 'PLH' | 'PPH' | 'INST' | 'OTRO';
+
+// The one crew roster: cached locally (localStorage) for instant, offline-capable reads,
+// and synced with the shared Neon table behind /api/crew when a PIN + connectivity are
+// available (see EfbDataContext's sync engine). `id` is always client-generated so a record
+// created offline never needs remapping once it reaches the server. `updatedAt` drives
+// last-write-wins conflict resolution during sync.
 export interface CrewProfile {
   id: string;
   fullName: string;
   role: CrewRole;
+  licenseType?: PilotLicenseType;
   licenseNumber: string;
   email: string;
   phone: string;
+  whatsapp?: string;
   licenseExpiry?: string; // ISO date (yyyy-mm-dd)
   medicalExpiry?: string; // ISO date (yyyy-mm-dd)
+  updatedAt?: string; // ISO datetime — absent until first synced
 }
 
 export interface RoutePoint {
@@ -196,13 +209,17 @@ export interface RoutePoint {
   isManual: boolean;
 }
 
+// Synced with the shared Neon table behind /api/route-plans — same pattern as CrewProfile.
 export interface SavedRoutePlan {
   id: string;
   name: string;
   savedAtIso: string;
   points: RoutePoint[];
+  updatedAt?: string;
 }
 
+// Synced with the shared Neon table behind /api/risk-log — same pattern as CrewProfile.
+// Append-only in practice (SMS audit trail): the UI only ever creates new entries.
 export interface RiskLogEntry {
   id: string;
   savedAtIso: string;
@@ -211,4 +228,5 @@ export interface RiskLogEntry {
   verdict: 'GO' | 'PRECAUCION' | 'NO-GO';
   blockers: string[];
   cautions: string[];
+  updatedAt?: string;
 }

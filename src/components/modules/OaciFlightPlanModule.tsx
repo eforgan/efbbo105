@@ -1,12 +1,45 @@
 'use client';
 
 import React from 'react';
-import { Send, Copy, Check, FileText, Mail, ShieldAlert, Plane, Download } from 'lucide-react';
-import { generateEanaFlightPlanPDF } from '../../lib/pdf-generator';
+import { Copy, Check, FileText, Share2, ShieldAlert, Plane, Download, PenLine, Stethoscope } from 'lucide-react';
+import { buildEanaFlightPlanDoc, eanaFlightPlanFileName, generateEanaFlightPlanPDF } from '../../lib/pdf-generator';
 import { useEfbData } from '../../context/EfbDataContext';
-import { calculateDistanceNm } from '../../lib/calculations';
+import { calculateDistanceNm, calculateHeadingDeg, calculateVfrCruisingLevel } from '../../lib/calculations';
+import { SignaturePad } from '../SignaturePad';
 
+// Debe coincidir con el crucero fijo de "Planificación de Navegación" (CRUISE_SPEED_KT):
+// la Casilla 15 (velocidad) y la Casilla 16 (EET) de este FPL se calculan sobre la misma
+// ruta compartida, así que declarar velocidades distintas produciría un EET inconsistente.
 const FPL_CRUISE_SPEED_KT = 100;
+const FPL_CRUISE_SPEED_FIELD = `N${FPL_CRUISE_SPEED_KT.toString().padStart(4, '0')}`;
+
+type FlightNature = 'general' | 'sanitario';
+
+// Item 18 "Otros Datos" carries the STS/ indicator that flags a flight as medical for ATS
+// (per EANA's own casilla 18 reference: STS/HOSP = "vuelo médico declarado por autoridades
+// médicas"). Re-applied whenever the toggle changes, without touching the rest of the free text.
+function withStsIndicator(text: string, nature: FlightNature): string {
+  const stripped = text.replace(/\s*STS\/(HOSP|MEDEVAC)\b/gi, '').trim();
+  return nature === 'sanitario' ? `STS/HOSP ${stripped}`.trim() : stripped;
+}
+
+function joinEquipmentCodes(codes: Array<[boolean, string]>): string {
+  const active = codes.filter(([on]) => on).map(([, code]) => code);
+  return active.length ? active.join(' ') : 'NIL';
+}
+
+// Casilla 19 N/ (Observaciones) per ICAO Doc 4444: "indíquese todo otro equipo de
+// supervivencia a bordo". The BO105's offshore fit-out (traje antiexposición, chalecos,
+// Air Pocket Plus, PLB) only applies when S/ Marítimo is carried — kept in sync with that
+// checkbox the same way STS/HOSP is kept in sync with the sanitario toggle, without
+// touching any other free text the despachante may have typed into N/.
+const OFFSHORE_GEAR_NOTE = 'TRAJE ANTIEXPOSICION, CHALECOS SALVAVIDAS (4), AIR POCKET PLUS (4), PLB (3)';
+
+function withOffshoreGearNote(text: string, maritime: boolean): string {
+  const stripped = text.split(OFFSHORE_GEAR_NOTE).join('').replace(/^[\s,/]+|[\s,/]+$/g, '').trim();
+  if (!maritime) return stripped;
+  return stripped ? `${OFFSHORE_GEAR_NOTE} / ${stripped}` : OFFSHORE_GEAR_NOTE;
+}
 
 export const OaciFlightPlanModule: React.FC = () => {
   const { activeProfile, routePoints } = useEfbData();
@@ -14,11 +47,17 @@ export const OaciFlightPlanModule: React.FC = () => {
   const [callsign, setCallsign] = React.useState<string>('LQHEMS');
   const [flightRules, setFlightRules] = React.useState<string>('V');
   const [flightType, setFlightType] = React.useState<string>('N');
+  // Naturaleza de la operación: no es una letra de Casilla 8 (esas son S/N/G/M/X), se declara
+  // en Casilla 18 mediante STS/HOSP — "vuelo médico declarado por autoridades médicas" (EANA).
+  const [flightNature, setFlightNature] = React.useState<FlightNature>('sanitario');
 
-  // Casilla 9 & 10
+  // Casilla 9 & 10. Casilla 10 se transmite como un único par "NAV/SURV" (p.ej. "S/S"):
+  // `equipment` es 10a (equipo COM/NAV/aproximación) y `transponder` es 10b (vigilancia),
+  // combinados más abajo como `${equipment}/${transponder}` — por eso `equipment` nunca
+  // debe traer su propia barra, o el plan sale con doble "/" (formato OACI inválido).
   const [aircraftType] = React.useState<string>('B105');
   const [wakeTurbulence] = React.useState<string>('L');
-  const [equipment, setEquipment] = React.useState<string>('S/C');
+  const [equipment, setEquipment] = React.useState<string>('S');
   const [transponder, setTransponder] = React.useState<string>('S');
 
   // Casilla 13
@@ -26,9 +65,12 @@ export const OaciFlightPlanModule: React.FC = () => {
   const [eobtTime, setEobtTime] = React.useState<string>('1200');
 
   // Casilla 15
-  const [cruiseSpeed, setCruiseSpeed] = React.useState<string>('N0110');
+  const [cruiseSpeed, setCruiseSpeed] = React.useState<string>(FPL_CRUISE_SPEED_FIELD);
   const [cruiseLevel, setCruiseLevel] = React.useState<string>('VFR');
   const [routeText, setRouteText] = React.useState<string>('DCT ANL DCT RDS');
+  // Altitud de crucero planificada (referencia para la regla hemisférica VFR par/impar);
+  // no es una casilla propia del FPL, alimenta el cálculo automático de Nivel de Vuelo (15b).
+  const [plannedAltFt, setPlannedAltFt] = React.useState<number>(3500);
 
   // Casilla 16
   const [destIcao, setDestIcao] = React.useState<string>('ANL');
@@ -41,17 +83,60 @@ export const OaciFlightPlanModule: React.FC = () => {
     'PBN/A1 NAV/RNV1 REG/LQHEMS RMK/OPERACION HEMS URGENCIA MEDICA MODENA AIR SERVICE'
   );
 
-  // Casilla 19
+  // Casilla 19 - Autonomía, Personas a Bordo
   const [enduranceHours, setEnduranceHours] = React.useState<string>('0230');
   const [pobCount, setPobCount] = React.useState<number>(4);
-  const [picName, setPicName] = React.useState<string>('Cap. Juan Pérez (PIC)');
   const [aircraftColor] = React.useState<string>('BLANCO CON AZUL Y ROJO MODENA');
+  const [pilotSignature, setPilotSignature] = React.useState<string | null>(null);
 
-  // Prefill PIC name from the active crew roster profile, if it's flying as PIC today.
+  // Casilla 19 - Equipo de emergencia y supervivencia (R/, S/, J/, D/)
+  const [radioUhf, setRadioUhf] = React.useState<boolean>(false);
+  const [radioVhf, setRadioVhf] = React.useState<boolean>(true);
+  const [radioElt, setRadioElt] = React.useState<boolean>(true);
+  const [survivalPolar, setSurvivalPolar] = React.useState<boolean>(false);
+  const [survivalDesert, setSurvivalDesert] = React.useState<boolean>(false);
+  const [survivalMaritime, setSurvivalMaritime] = React.useState<boolean>(false);
+  const [survivalJungle, setSurvivalJungle] = React.useState<boolean>(false);
+  const [jacketsLight, setJacketsLight] = React.useState<boolean>(true);
+  const [jacketsFluorescein, setJacketsFluorescein] = React.useState<boolean>(true);
+  const [dinghyCount, setDinghyCount] = React.useState<number>(1);
+  const [dinghyCapacity, setDinghyCapacity] = React.useState<number>(6);
+  const [dinghyCovered, setDinghyCovered] = React.useState<boolean>(true);
+  const [dinghyColor, setDinghyColor] = React.useState<string>('NARANJA');
+  const [remarksN, setRemarksN] = React.useState<string>('');
+
+  // Casilla 19 C/ - Piloto al mando: nombre, licencia y celular (para contacto SAR)
+  const [picName, setPicName] = React.useState<string>('Cap. Juan Pérez (PIC)');
+  const [picLicenseType, setPicLicenseType] = React.useState<string>('');
+  const [picLicenseNumber, setPicLicenseNumber] = React.useState<string>('');
+  const [picPhone, setPicPhone] = React.useState<string>('');
+
+  // Prefill PIC name, tipo/número de licencia y celular desde el roster de tripulantes
+  // (Registro del Piloto), si está volando como PIC hoy — así no se retipean en cada plan.
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from the roster store on mount/change, not a render loop
-    if (activeProfile && activeProfile.role === 'PIC' && activeProfile.fullName) setPicName(activeProfile.fullName);
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time sync from the roster store on mount/change, not a render loop */
+    if (activeProfile && activeProfile.role === 'PIC') {
+      if (activeProfile.fullName) setPicName(activeProfile.fullName);
+      setPicLicenseType(activeProfile.licenseType ?? '');
+      setPicLicenseNumber(activeProfile.licenseNumber ?? '');
+      setPicPhone(activeProfile.phone ?? '');
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [activeProfile]);
+
+  // Mantiene el indicador STS/HOSP de Casilla 18 sincronizado con la naturaleza declarada,
+  // sin pisar el resto del texto libre que haya cargado el despachante.
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- derived toggle sync, not a render loop
+    setOtherInfo(prev => withStsIndicator(prev, flightNature));
+  }, [flightNature]);
+
+  // Mantiene la nota de equipo offshore (traje antiexposición, chalecos, Air Pocket Plus,
+  // PLB) en Casilla 19 N/ sincronizada con S/ Marítimo, sin pisar otras observaciones cargadas.
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- derived toggle sync, not a render loop
+    setRemarksN(prev => withOffshoreGearNote(prev, survivalMaritime));
+  }, [survivalMaritime]);
 
   // Prefill departure/destination/route/alternates/EET from the route planned in
   // "Planificación de Navegación", so this FPL matches the actual plan instead of the
@@ -79,17 +164,41 @@ export const OaciFlightPlanModule: React.FC = () => {
     const hh = Math.floor(totalMin / 60).toString().padStart(2, '0');
     const mm = Math.round(totalMin % 60).toString().padStart(2, '0');
     setEetTime(`${hh}${mm}`);
+    // Keep Casilla 15's stated speed matched to the speed this EET was actually derived from.
+    setCruiseSpeed(FPL_CRUISE_SPEED_FIELD);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [routePoints]);
 
-  // Email destination & Sending state
-  const [recipientEmail, setRecipientEmail] = React.useState<string>('aro-ais@eana.com.ar');
-  const [isSending, setIsSending] = React.useState<boolean>(false);
-  const [sendResult, setSendResult] = React.useState<{ success: boolean; message: string } | null>(null);
+  // Rumbo (derrota) directo entre el primer y último punto de la ruta planificada, base para
+  // la regla hemisférica VFR (AIP Argentina GEN 3.3 / Reglamento de Vuelos N° 91).
+  const overallTrackDeg = React.useMemo(() => {
+    const main = routePoints.filter(p => !p.isAlternate);
+    if (main.length < 2) return null;
+    return calculateHeadingDeg(main[0], main[main.length - 1]);
+  }, [routePoints]);
+
+  // Track 000-179° -> nivel impar; 180-359° -> nivel par; +500 ft en vuelo VFR no controlado.
+  // Obligatorio a partir de 3,000 ft; por debajo se puede volar sin nivel fijo ("VFR").
+  const vfrLevel = React.useMemo(() => {
+    if (flightRules !== 'V' || overallTrackDeg === null) return null;
+    return calculateVfrCruisingLevel(overallTrackDeg, plannedAltFt);
+  }, [flightRules, overallTrackDeg, plannedAltFt]);
+
+  // Vuelca el nivel reglamentario calculado a la Casilla 15b — VFR es válido por reglamento
+  // por debajo de 3,000 ft; por encima es obligatorio expresar la altitud par/impar +500 ft.
+  React.useEffect(() => {
+    if (!vfrLevel) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- derived regulatory value from route/altitude/rules, not a render loop
+    setCruiseLevel(vfrLevel.isMandatory ? vfrLevel.formatted : 'VFR');
+  }, [vfrLevel]);
+
   const [copied, setCopied] = React.useState<boolean>(false);
+  const [shareResult, setShareResult] = React.useState<{ success: boolean; message: string } | null>(null);
+  const [isSharing, setIsSharing] = React.useState<boolean>(false);
 
   // Load Preset by Base Contract
   const handleLoadPreset = (preset: 'vista' | 'utv' | 'same' | 'ypf') => {
+    setSurvivalMaritime(preset === 'ypf');
     if (preset === 'vista') {
       setDepIcao('SAZN');
       setDestIcao('ANL');
@@ -97,7 +206,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0045');
       setAltn1Icao('SAZN');
       setAltn2Icao('SAOB');
-      setOtherInfo('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/CONTRATO VISTA VACA MUERTA HEMS MODENA');
+      setOtherInfo(withStsIndicator('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/CONTRATO VISTA VACA MUERTA HEMS MODENA', flightNature));
     } else if (preset === 'utv') {
       setDepIcao('SAAR');
       setDestIcao('HSP');
@@ -105,7 +214,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0030');
       setAltn1Icao('SAAR');
       setAltn2Icao('VIC');
-      setOtherInfo('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/OPERACION UTV ROSARIO SANATORIO PARQUE');
+      setOtherInfo(withStsIndicator('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/OPERACION UTV ROSARIO SANATORIO PARQUE', flightNature));
     } else if (preset === 'same') {
       setDepIcao('SABE');
       setDestIcao('HBR');
@@ -113,7 +222,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0025');
       setAltn1Icao('SADF');
       setAltn2Icao('SABE');
-      setOtherInfo('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/OPERACION SAME AEREO CÓDIGO ROJO URBANO');
+      setOtherInfo(withStsIndicator('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/OPERACION SAME AEREO CÓDIGO ROJO URBANO', flightNature));
     } else if (preset === 'ypf') {
       setDepIcao('SA21');
       setDestIcao('SEMINOLE');
@@ -121,34 +230,89 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0035');
       setAltn1Icao('SAVY');
       setAltn2Icao('SA21');
-      setOtherInfo('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/YPF VMOS OFFSHORE OVERWATER DLV SEMINOLE');
+      setOtherInfo(withStsIndicator('PBN/A1 NAV/RNV1 REG/LQHEMS RMK/YPF VMOS OFFSHORE OVERWATER DLV SEMINOLE', flightNature));
     }
   };
 
+  // Casilla 19 emergency/survival codes (R/, S/, J/) — ICAO Doc 4444 Apéndice 2: se listan las
+  // letras de lo que SÍ se lleva a bordo (equivalente digital de "táchese lo que no aplica").
+  const radioCode = joinEquipmentCodes([[radioUhf, 'U'], [radioVhf, 'V'], [radioElt, 'E']]);
+  const survivalCode = joinEquipmentCodes([[survivalPolar, 'P'], [survivalDesert, 'D'], [survivalMaritime, 'M'], [survivalJungle, 'J']]);
+  const jacketsCode = joinEquipmentCodes([[jacketsLight, 'L'], [jacketsFluorescein, 'F']]);
+
+  const pdfParams = {
+    callsign,
+    flightRules,
+    flightType,
+    aircraftType,
+    wakeTurbulence,
+    equipment,
+    transponder,
+    depIcao,
+    eobtTime,
+    cruiseSpeed,
+    cruiseLevel,
+    routeText,
+    destIcao,
+    eetTime,
+    altn1Icao,
+    altn2Icao,
+    otherInfo,
+    enduranceHours,
+    pobCount,
+    radioCode,
+    survivalCode,
+    jacketsCode,
+    dinghyCount,
+    dinghyCapacity,
+    dinghyCovered,
+    dinghyColor,
+    remarksN,
+    picName,
+    picLicenseType,
+    picLicenseNumber,
+    picPhone,
+    aircraftColor,
+    pilotSignatureDataUrl: pilotSignature
+  };
+
   const handleDownloadPDF = () => {
-    generateEanaFlightPlanPDF({
-      callsign,
-      flightRules,
-      flightType,
-      aircraftType,
-      wakeTurbulence,
-      equipment,
-      transponder,
-      depIcao,
-      eobtTime,
-      cruiseSpeed,
-      cruiseLevel,
-      routeText,
-      destIcao,
-      eetTime,
-      altn1Icao,
-      altn2Icao,
-      otherInfo,
-      enduranceHours,
-      pobCount,
-      picName,
-      aircraftColor
-    });
+    generateEanaFlightPlanPDF(pdfParams);
+  };
+
+  // Hands the generated PDF to whatever mail (or other) app the user has installed,
+  // via the OS share sheet, instead of relaying it ourselves through an SMTP account.
+  const handleShareEmail = async () => {
+    setIsSharing(true);
+    setShareResult(null);
+    try {
+      const doc = buildEanaFlightPlanDoc(pdfParams);
+      const blob = doc.output('blob');
+      const file = new File([blob], eanaFlightPlanFileName(callsign), { type: 'application/pdf' });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Plan de Vuelo EANA 1801 - ${callsign}`,
+          text: `Plan de vuelo reglamentario ${callsign} ${depIcao} -> ${destIcao} (${eobtTime} UTC)`
+        });
+        setShareResult({ success: true, message: 'Documento enviado al selector de aplicaciones del dispositivo.' });
+      } else {
+        // Desktop browsers (or ones without file-sharing support) can't attach a file to
+        // a mailto: link, so fall back to a plain download the user can attach by hand.
+        doc.save(eanaFlightPlanFileName(callsign));
+        setShareResult({
+          success: false,
+          message: 'Este navegador no admite compartir archivos. Se descargó el PDF: adjuntalo manualmente en tu aplicación de correo.'
+        });
+      }
+    } catch (err: unknown) {
+      if ((err as Error)?.name !== 'AbortError') {
+        setShareResult({ success: false, message: (err as Error).message });
+      }
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   // Generate Raw ATS Plain Text
@@ -161,178 +325,18 @@ export const OaciFlightPlanModule: React.FC = () => {
 
 (SUPP/
 -E/${enduranceHours} P/${pobCount}
--R/V/S
--J/L/F
--D/1 6 C/NARANJA
+-R/${radioCode}
+-S/${survivalCode}
+-J/${jacketsCode}
+-D/${dinghyCount} ${dinghyCapacity} ${dinghyCovered ? 'C' : 'SIN C'} ${dinghyColor}
 -A/${aircraftColor}
--C/${picName})`;
+-N/${remarksN || 'NIL'}
+-C/${picName}${picLicenseType ? ` LIC ${picLicenseType}` : ''}${picLicenseNumber ? ` N ${picLicenseNumber}` : ''}${picPhone ? ` CEL ${picPhone}` : ''})`;
 
   const handleCopyRaw = () => {
     navigator.clipboard.writeText(rawOaciPlan);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleSendEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSending(true);
-    setSendResult(null);
-
-    const emailSubject = `[PLAN DE VUELO EANA FORMULARIO 1801] - ${callsign} - ${depIcao} -> ${destIcao} (${eobtTime} UTC)`;
-    
-    // Official Regulatory EANA Form 1801 HTML Grid Template
-    const emailHtml = `
-      <div style="font-family: 'Courier New', Courier, monospace; background-color: #ffffff; color: #000000; padding: 20px; border: 2px solid #000000; max-w: 800px; margin: auto;">
-        <!-- Header Banner EANA -->
-        <table style="width: 100%; border: 1px solid #000000; border-collapse: collapse; margin-bottom: 10px; background-color: #f1f5f9;">
-          <tr>
-            <td style="padding: 10px; font-family: Arial, sans-serif; font-size: 13px; font-weight: bold; border-bottom: 1px solid #000000;">
-              REPUBLICA ARGENTINA - EMPRESA ARGENTINA DE NAVEGACION AEREA (EANA S.E.)<br/>
-              <span style="font-size: 11px; font-weight: normal; color: #475569;">SERVICIOS DE TRÁNSITO AÉREO • FORMULARIO REGLAMENTARIO DE PLAN DE VUELO 1801 (OACI / ANAC)</span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 6px 10px; font-family: Arial, sans-serif; font-size: 10px; color: #334155;">
-              <strong>OPERADOR:</strong> MODENA AIR SERVICE | <strong>EMISIÓN:</strong> ${new Date().toLocaleString('es-AR')}
-            </td>
-          </tr>
-        </table>
-
-        <!-- Regulatory Box 3: Priority & AFTN Header -->
-        <table style="width: 100%; border: 1px solid #000000; border-collapse: collapse; margin-bottom: 8px;">
-          <tr style="background-color: #e2e8f0; font-family: Arial; font-size: 9px; font-weight: bold;">
-            <td style="padding: 4px;">3. PRIORIDAD / DESTINATARIOS AFTN / HORA DEPÓSITO / REMITENTE</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-size: 12px; font-weight: bold;">
-              FF  ${depIcao}ZPZX ${destIcao}ZPZX<br/>
-              ${new Date().getUTCHours().toString().padStart(2, '0')}${new Date().getUTCMinutes().toString().padStart(2, '0')} UTC  ${callsign}
-            </td>
-          </tr>
-        </table>
-
-        <!-- Regulatory Box 7, 8, 9, 10 Grid -->
-        <table style="width: 100%; border: 1px solid #000000; border-collapse: collapse; margin-bottom: 8px;">
-          <tr>
-            <td style="width: 50%; border: 1px solid #000000; padding: 6px; vertical-align: top;">
-              <span style="font-family: Arial; font-size: 8px; font-weight: bold; color: #475569;">7. IDENTIFICACIÓN AERONAVE</span><br/>
-              <strong style="font-size: 14px;">${callsign}</strong>
-            </td>
-            <td style="width: 50%; border: 1px solid #000000; padding: 6px; vertical-align: top;">
-              <span style="font-family: Arial; font-size: 8px; font-weight: bold; color: #475569;">8. REGLAS DE VUELO / TIPO DE VUELO</span><br/>
-              <strong style="font-size: 14px;">${flightRules} &nbsp;&nbsp;&nbsp;&nbsp; ${flightType}</strong>
-            </td>
-          </tr>
-          <tr>
-            <td style="border: 1px solid #000000; padding: 6px; vertical-align: top;">
-              <span style="font-family: Arial; font-size: 8px; font-weight: bold; color: #475569;">9. NÚMERO / TIPO AERONAVE / ESTELA</span><br/>
-              <strong style="font-size: 13px;">1 &nbsp; ${aircraftType} / ${wakeTurbulence}</strong>
-            </td>
-            <td style="border: 1px solid #000000; padding: 6px; vertical-align: top;">
-              <span style="font-family: Arial; font-size: 8px; font-weight: bold; color: #475569;">10. EQUIPO NAVEGACIÓN & TRANSPONDER</span><br/>
-              <strong style="font-size: 13px;">${equipment} / ${transponder}</strong>
-            </td>
-          </tr>
-        </table>
-
-        <!-- Regulatory Box 13: Salida -->
-        <table style="width: 100%; border: 1px solid #000000; border-collapse: collapse; margin-bottom: 8px;">
-          <tr style="background-color: #e2e8f0; font-family: Arial; font-size: 9px; font-weight: bold;">
-            <td style="padding: 4px;">13. AERÓDROMO DE SALIDA & HORA EOBT (UTC)</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-size: 13px; font-weight: bold;">
-              ${depIcao} &nbsp;&nbsp;&nbsp;&nbsp; ${eobtTime} UTC
-            </td>
-          </tr>
-        </table>
-
-        <!-- Regulatory Box 15: Vel, Nivel, Ruta -->
-        <table style="width: 100%; border: 1px solid #000000; border-collapse: collapse; margin-bottom: 8px;">
-          <tr style="background-color: #e2e8f0; font-family: Arial; font-size: 9px; font-weight: bold;">
-            <td style="padding: 4px;">15. VELOCIDAD DE CRUCERO / NIVEL / RUTA SOLICITADA OACI</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-size: 12px;">
-              <strong>CRUCERO & NIVEL:</strong> ${cruiseSpeed} &nbsp;&nbsp; ${cruiseLevel}<br/>
-              <strong>RUTA:</strong> ${routeText}
-            </td>
-          </tr>
-        </table>
-
-        <!-- Regulatory Box 16: Destino & Alternativos -->
-        <table style="width: 100%; border: 1px solid #000000; border-collapse: collapse; margin-bottom: 8px;">
-          <tr style="background-color: #e2e8f0; font-family: Arial; font-size: 9px; font-weight: bold;">
-            <td style="padding: 4px;">16. AERÓDROMO DE DESTINO & EET / ALTERNATIVOS 1 Y 2</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-size: 12px;">
-              <strong>DESTINO:</strong> ${destIcao} &nbsp;&nbsp; <strong>EET:</strong> ${eetTime} M &nbsp;&nbsp;&nbsp;&nbsp;
-              <strong>ALTN 1:</strong> ${altn1Icao} &nbsp;&nbsp; <strong>ALTN 2:</strong> ${altn2Icao}
-            </td>
-          </tr>
-        </table>
-
-        <!-- Regulatory Box 18: Otros Datos -->
-        <table style="width: 100%; border: 1px solid #000000; border-collapse: collapse; margin-bottom: 8px;">
-          <tr style="background-color: #e2e8f0; font-family: Arial; font-size: 9px; font-weight: bold;">
-            <td style="padding: 4px;">18. OTROS DATOS (DATOS OACI / REMARKS)</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-size: 11px;">
-              ${otherInfo}
-            </td>
-          </tr>
-        </table>
-
-        <!-- Regulatory Box 19: Suplementaria SAR -->
-        <table style="width: 100%; border: 1px solid #000000; border-collapse: collapse; margin-bottom: 12px;">
-          <tr style="background-color: #e2e8f0; font-family: Arial; font-size: 9px; font-weight: bold;">
-            <td style="padding: 4px;">19. INFORMACIÓN SUPLEMENTARIA (EQUIPO DE SUPERVIVENCIA & SALVAMENTO)</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-size: 11px; line-height: 1.5;">
-              <strong>E/</strong> ${enduranceHours} &nbsp;&nbsp;&nbsp;&nbsp; <strong>P/</strong> ${pobCount}<br/>
-              <strong>R/</strong> V / S (RADIO VHF / UHF)<br/>
-              <strong>J/</strong> L / F (CHALECOS CON LUZ Y FLUORESCENTE)<br/>
-              <strong>D/</strong> 1 BALSA 6 PAX C/NARANJA<br/>
-              <strong>A/</strong> ${aircraftColor}<br/>
-              <strong>C/</strong> ${picName}
-            </td>
-          </tr>
-        </table>
-
-        <!-- Raw ATS String Box -->
-        <div style="background-color: #0f172a; color: #38bdf8; padding: 12px; border-radius: 4px; font-size: 11px;">
-          <strong style="color: #ffffff;">CADENA ATS OACI CRUDA:</strong><br/>
-          ${rawOaciPlan.replace(/\n/g, '<br/>')}
-        </div>
-      </div>
-    `;
-
-    try {
-      const res = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: recipientEmail,
-          subject: emailSubject,
-          text: rawOaciPlan,
-          html: emailHtml
-        })
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setSendResult({ success: true, message: `Plan de vuelo transmitido con éxito a ${recipientEmail}` });
-      } else {
-        setSendResult({ success: false, message: data.error || 'Error al transmitir plan de vuelo EANA' });
-      }
-    } catch (err: unknown) {
-      setSendResult({ success: false, message: (err as Error).message });
-    } finally {
-      setIsSending(false);
-    }
   };
 
   return (
@@ -356,8 +360,25 @@ export const OaciFlightPlanModule: React.FC = () => {
           >
             <Download className="w-4 h-4" /> Descargar Formulario 1801 (PDF)
           </button>
+          <button
+            type="button"
+            onClick={handleShareEmail}
+            disabled={isSharing}
+            className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50"
+          >
+            <Share2 className="w-4 h-4" /> {isSharing ? 'Preparando...' : 'Enviar por Email'}
+          </button>
         </div>
       </div>
+
+      {shareResult && (
+        <div className={`p-2.5 rounded-lg border text-xs flex items-center gap-2 font-mono ${
+          shareResult.success ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-amber-950/40 border-amber-500/40 text-amber-300'
+        }`}>
+          {shareResult.success ? <Check className="w-4 h-4 shrink-0" /> : <ShieldAlert className="w-4 h-4 shrink-0" />}
+          <span>{shareResult.message}</span>
+        </div>
+      )}
 
       {/* Preset Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 glass-card p-3 rounded-xl border border-slate-800 font-mono text-xs">
@@ -434,11 +455,31 @@ export const OaciFlightPlanModule: React.FC = () => {
                 onChange={(e) => setFlightType(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200"
               >
-                <option value="N">N (No Regular HEMS)</option>
+                <option value="N">N (No Regular)</option>
                 <option value="S">S (Regular)</option>
                 <option value="G">G (General)</option>
                 <option value="M">M (Militar)</option>
               </select>
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">Naturaleza (Casilla 18 STS/)</label>
+              <div className="flex rounded overflow-hidden border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setFlightNature('general')}
+                  className={`flex-1 px-2 py-1 text-[11px] font-bold cursor-pointer transition ${flightNature === 'general' ? 'bg-slate-600 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800'}`}
+                >
+                  General
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFlightNature('sanitario')}
+                  className={`flex-1 px-2 py-1 text-[11px] font-bold cursor-pointer transition flex items-center justify-center gap-1 ${flightNature === 'sanitario' ? 'bg-rose-600 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800'}`}
+                >
+                  <Stethoscope className="w-3 h-3" /> Sanitario
+                </button>
+              </div>
             </div>
 
             <div>
@@ -492,7 +533,7 @@ export const OaciFlightPlanModule: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="text-slate-400 block mb-1">15. Vel Crucero</label>
               <input
@@ -504,7 +545,19 @@ export const OaciFlightPlanModule: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-slate-400 block mb-1">15. Nivel de Vuelo</label>
+              <label className="text-slate-400 block mb-1">Altitud Planificada (ft)</label>
+              <input
+                type="number"
+                step={100}
+                value={plannedAltFt}
+                onChange={(e) => setPlannedAltFt(Number(e.target.value))}
+                disabled={flightRules !== 'V'}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200 disabled:opacity-40"
+              />
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">15. Nivel de Vuelo (auto)</label>
               <input
                 type="text"
                 value={cruiseLevel}
@@ -532,6 +585,18 @@ export const OaciFlightPlanModule: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <p className="text-[10px] text-slate-500 -mt-2">
+            {flightRules !== 'V'
+              ? 'Regla hemisférica par/impar (+500 ft) aplica a vuelo VFR no controlado — con Regla de Vuelo I/Y/Z, cargá el nivel manualmente.'
+              : overallTrackDeg === null
+                ? 'Cargá al menos 2 puntos en "Planificación de Navegación" para calcular el rumbo y el nivel reglamentario.'
+                : `Rumbo directo ${overallTrackDeg}° → nivel ${vfrLevel?.parity} (AIP GEN 3.3 / Regl. de Vuelos N° 91). ${
+                    vfrLevel?.isMandatory
+                      ? `Obligatorio sobre 3,000 ft: ${vfrLevel.formatted} (${vfrLevel.altitudeFt.toLocaleString('es-AR')} ft).`
+                      : 'Por debajo de 3,000 ft no es obligatorio fijar nivel (Casilla 15 = VFR).'
+                  }`}
+          </p>
 
           <div>
             <label className="text-slate-400 block mb-1">15. Ruta Solicitada OACI</label>
@@ -575,9 +640,9 @@ export const OaciFlightPlanModule: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3 border-t border-slate-800 pt-3">
+          <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
             <div>
-              <label className="text-slate-400 block mb-1">19. Autonomía</label>
+              <label className="text-slate-400 block mb-1">19. Autonomía (E/)</label>
               <input
                 type="text"
                 value={enduranceHours}
@@ -586,7 +651,7 @@ export const OaciFlightPlanModule: React.FC = () => {
               />
             </div>
             <div>
-              <label className="text-slate-400 block mb-1">19. Personas (POB)</label>
+              <label className="text-slate-400 block mb-1">19. Personas a Bordo (P/)</label>
               <input
                 type="number"
                 value={pobCount}
@@ -594,8 +659,80 @@ export const OaciFlightPlanModule: React.FC = () => {
                 className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="text-slate-400 block mb-1">19. Piloto (PIC)</label>
+              <label className="text-slate-400 block mb-1">19. Radio Emergencia (R/)</label>
+              <div className="flex gap-2 bg-slate-900 border border-slate-700 rounded px-2 py-1.5">
+                {([['UHF 243,0', radioUhf, setRadioUhf], ['VHF 121,5', radioVhf, setRadioVhf], ['ELT', radioElt, setRadioElt]] as const).map(([label, on, setOn]) => (
+                  <label key={label} className="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
+                    <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} className="cursor-pointer" /> {label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-[9px] text-slate-500 mt-1">ELT instalado transmite en 121,5 MHz.</p>
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">19. Equipo Supervivencia (S/)</label>
+              <div className="flex flex-wrap gap-2 bg-slate-900 border border-slate-700 rounded px-2 py-1.5">
+                {([['Polar', survivalPolar, setSurvivalPolar], ['Desierto', survivalDesert, setSurvivalDesert], ['Marítimo', survivalMaritime, setSurvivalMaritime], ['Selva', survivalJungle, setSurvivalJungle]] as const).map(([label, on, setOn]) => (
+                  <label key={label} className="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
+                    <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} className="cursor-pointer" /> {label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-[9px] text-slate-500 mt-1">
+                Marítimo agrega automáticamente a N/ el equipo offshore (traje antiexposición, chalecos, Air Pocket Plus, PLB).
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">19. Chalecos (J/)</label>
+              <div className="flex gap-2 bg-slate-900 border border-slate-700 rounded px-2 py-1.5">
+                {([['Luz', jacketsLight, setJacketsLight], ['Fluoresceína', jacketsFluorescein, setJacketsFluorescein]] as const).map(([label, on, setOn]) => (
+                  <label key={label} className="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
+                    <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} className="cursor-pointer" /> {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="text-slate-400 block mb-1">19. Botes (D/) N°</label>
+              <input type="number" value={dinghyCount} onChange={(e) => setDinghyCount(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200" />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">19. Capacidad (pax)</label>
+              <input type="number" value={dinghyCapacity} onChange={(e) => setDinghyCapacity(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200" />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">19. Cubierta</label>
+              <label className="flex items-center gap-1.5 h-[30px] text-[11px] text-slate-300 cursor-pointer">
+                <input type="checkbox" checked={dinghyCovered} onChange={(e) => setDinghyCovered(e.target.checked)} className="cursor-pointer" /> Con cubierta
+              </label>
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">19. Color Botes</label>
+              <input type="text" value={dinghyColor} onChange={(e) => setDinghyColor(e.target.value.toUpperCase())} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-slate-400 block mb-1">19. Observaciones (N/)</label>
+            <input
+              type="text"
+              value={remarksN}
+              onChange={(e) => setRemarksN(e.target.value.toUpperCase())}
+              placeholder="Otro equipo de supervivencia a bordo, si corresponde"
+              className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t border-slate-800 pt-3">
+            <div>
+              <label className="text-slate-400 block mb-1">19. Piloto (C/)</label>
               <input
                 type="text"
                 value={picName}
@@ -603,7 +740,39 @@ export const OaciFlightPlanModule: React.FC = () => {
                 className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200"
               />
             </div>
+            <div>
+              <label className="text-slate-400 block mb-1">Tipo Licencia</label>
+              <input
+                type="text"
+                value={picLicenseType}
+                onChange={(e) => setPicLicenseType(e.target.value.toUpperCase())}
+                placeholder="PCH"
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">N° Licencia</label>
+              <input
+                type="text"
+                value={picLicenseNumber}
+                onChange={(e) => setPicLicenseNumber(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">Celular</label>
+              <input
+                type="tel"
+                value={picPhone}
+                onChange={(e) => setPicPhone(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200"
+              />
+            </div>
           </div>
+          <p className="text-[10px] text-slate-500 -mt-2">
+            Nombre, licencia y celular del PIC se autocompletan desde el Registro de Tripulantes (Roster) cuando elegís
+            quién &quot;Vuela Hoy&quot; con rol PIC — podés sobrescribirlos acá si hace falta.
+          </p>
         </div>
 
         {/* EANA Official Form Preview & Email (6 Cols) */}
@@ -633,6 +802,9 @@ export const OaciFlightPlanModule: React.FC = () => {
                 <div className="p-1.5">
                   <span className="font-bold text-[8px] text-slate-500 block">8. REGLAS / TIPO VUELO</span>
                   <span className="font-bold text-xs text-slate-900">{flightRules} &nbsp; {flightType}</span>
+                  <span className={`ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded ${flightNature === 'sanitario' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-600'}`}>
+                    {flightNature === 'sanitario' ? 'SANITARIO (STS/HOSP)' : 'GENERAL'}
+                  </span>
                 </div>
               </div>
 
@@ -676,8 +848,13 @@ export const OaciFlightPlanModule: React.FC = () => {
               {/* Box 19 */}
               <div className="p-1.5 bg-slate-50">
                 <span className="font-bold text-[8px] text-slate-500 block">19. SUPLEMENTARIA (SAR & SUPERVIVENCIA)</span>
-                <span className="text-[9px] block">E/{enduranceHours} P/{pobCount} R/V/S J/L/F D/1 6 C/NARANJA</span>
-                <span className="text-[9px] font-bold text-slate-700">A/{aircraftColor} C/{picName}</span>
+                <span className="text-[9px] block">
+                  E/{enduranceHours} P/{pobCount} R/{radioCode} S/{survivalCode} J/{jacketsCode} D/{dinghyCount} {dinghyCapacity} {dinghyCovered ? 'C' : 'SIN C'} {dinghyColor}
+                </span>
+                <span className="text-[9px] block">A/{aircraftColor} N/{remarksN || 'NIL'}</span>
+                <span className="text-[9px] font-bold text-slate-700">
+                  C/{picName}{picLicenseType ? ` LIC ${picLicenseType}` : ''}{picLicenseNumber ? ` N° ${picLicenseNumber}` : ''}{picPhone ? ` CEL ${picPhone}` : ''}
+                </span>
               </div>
             </div>
 
@@ -695,41 +872,27 @@ export const OaciFlightPlanModule: React.FC = () => {
             </div>
           </div>
 
-          {/* Email Transmission Form */}
-          <form onSubmit={handleSendEmail} className="glass-card p-4 rounded-xl border border-slate-800 space-y-3 font-mono">
+          {/* PIC Signature & Export */}
+          <div className="glass-card p-4 rounded-xl border border-slate-800 space-y-3 font-mono">
             <h3 className="text-xs font-bold text-slate-100 uppercase border-b border-slate-800 pb-2 flex items-center gap-2">
-              <Mail className="w-4 h-4 text-emerald-400" /> Transmitir Formulario Reglamentario por Correo
+              <PenLine className="w-4 h-4 text-emerald-400" /> Firma del PIC & Exportación
             </h3>
 
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1">Destinatario (ARO-AIS EANA / Notificación):</label>
-              <input
-                type="email"
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-                required
-                placeholder="aro-ais@eana.com.ar"
-                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 text-xs"
-              />
+              <label className="text-[10px] text-slate-400 flex items-center gap-1.5 mb-1">
+                <PenLine className="w-3.5 h-3.5" /> Conformidad PIC (Firma)
+              </label>
+              <SignaturePad onChange={setPilotSignature} />
+              <p className="text-[10px] text-slate-500 mt-1">
+                {pilotSignature ? 'Firma capturada — se incluye en el PDF.' : 'Sin firmar — el PDF se genera igual, con el recuadro en blanco.'}
+              </p>
             </div>
 
-            {sendResult && (
-              <div className={`p-2.5 rounded-lg border text-xs flex items-center gap-2 ${
-                sendResult.success ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/40 border-rose-500/40 text-rose-300'
-              }`}>
-                {sendResult.success ? <Check className="w-4 h-4 shrink-0" /> : <ShieldAlert className="w-4 h-4 shrink-0" />}
-                <span>{sendResult.message}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSending}
-              className="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" /> {isSending ? 'Transmitiendo a EANA...' : 'Enviar Formulario 1801 por Email'}
-            </button>
-          </form>
+            <p className="text-[10px] text-slate-500 border-t border-slate-800 pt-2">
+              Descargá el PDF firmado a una carpeta del dispositivo, o usá &quot;Enviar por Email&quot; para adjuntarlo
+              directamente desde el selector de aplicaciones del sistema (Gmail, Outlook, Mail, WhatsApp, etc.).
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -179,7 +179,7 @@ export function generateDispatchPDF(
   doc.save(`Despacho_Modena_BO105_${Date.now()}.pdf`);
 }
 
-export function generateEanaFlightPlanPDF(params: {
+export interface EanaFlightPlanParams {
   callsign: string;
   flightRules: string;
   flightType: string;
@@ -199,9 +199,33 @@ export function generateEanaFlightPlanPDF(params: {
   otherInfo: string;
   enduranceHours: string;
   pobCount: number;
+  radioCode: string; // Casilla 19 R/ — UHF/VHF/ELT carried (e.g. "V E")
+  survivalCode: string; // Casilla 19 S/ — POLAR/DESERT/MARITIME/JUNGLE carried
+  jacketsCode: string; // Casilla 19 J/ — LIGHT/FLUORESCEIN carried
+  dinghyCount: number;
+  dinghyCapacity: number;
+  dinghyCovered: boolean;
+  dinghyColor: string;
+  remarksN: string; // Casilla 19 N/ — supplementary survival equipment remarks
   picName: string;
+  picLicenseType: string;
+  picLicenseNumber: string;
+  picPhone: string;
   aircraftColor: string;
-}) {
+  pilotSignatureDataUrl?: string | null;
+}
+
+export function eanaFlightPlanFileName(callsign: string): string {
+  return `Plan_de_Vuelo_EANA_1801_${callsign}_${Date.now()}.pdf`;
+}
+
+// Builds the FPL 1801 document without saving it, so callers can either trigger a
+// browser download (save) or turn it into a Blob/File to hand off to navigator.share.
+//
+// Box layout fills the full A4 printable area (10mm margins on all sides, 10-287mm)
+// instead of stopping at ~268mm — the freed 19mm goes into taller boxes and larger data
+// fonts (labels ~8pt, data 10.5-14pt) so the printed sheet reads clearly at arm's length.
+export function buildEanaFlightPlanDoc(params: EanaFlightPlanParams) {
   const doc = new jsPDF('portrait', 'mm', 'a4');
 
   // EANA Header Banner
@@ -209,125 +233,156 @@ export function generateEanaFlightPlanPDF(params: {
   doc.setLineWidth(0.5);
 
   doc.setFillColor(240, 240, 240);
-  doc.rect(10, 10, 190, 22, 'FD');
+  doc.rect(10, 10, 190, 23, 'FD');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text('REPUBLICA ARGENTINA - EMPRESA ARGENTINA DE NAVEGACION AEREA (EANA S.E.)', 15, 17);
-  doc.setFontSize(10);
-  doc.text('FORMULARIO REGLAMENTARIO DE PLAN DE VUELO (FPL 1801 OACI / ANAC)', 15, 24);
-  doc.setFontSize(8);
+  doc.text('REPUBLICA ARGENTINA - EMPRESA ARGENTINA DE NAVEGACION AEREA (EANA S.E.)', 15, 18);
+  doc.setFontSize(11);
+  doc.text('FORMULARIO REGLAMENTARIO DE PLAN DE VUELO (FPL 1801 OACI / ANAC)', 15, 25);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(`FECHA EMISIÓN: ${new Date().toLocaleDateString('es-AR')} | OPERADOR: MODENA AIR SERVICE`, 15, 29);
+  doc.text(`FECHA EMISIÓN: ${new Date().toLocaleDateString('es-AR')} | OPERADOR: MODENA AIR SERVICE`, 15, 31);
 
   // Casilla 3 - Prioridad & Encabezado ATS
-  doc.rect(10, 34, 190, 14);
-  doc.setFontSize(7);
+  doc.rect(10, 35, 190, 15);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text('3. PRIORIDAD / DESTINATARIOS AFTN / HORA DE DEPÓSITO / REMITENTE', 12, 38);
+  doc.text('3. PRIORIDAD / DESTINATARIOS AFTN / HORA DE DEPÓSITO / REMITENTE', 12, 39);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(9);
-  doc.text(`FF  ${params.depIcao}ZPZX ${params.destIcao}ZPZX`, 12, 44);
-  doc.text(`${new Date().getUTCHours().toString().padStart(2, '0')}${new Date().getUTCMinutes().toString().padStart(2, '0')} UTC  ${params.callsign}`, 110, 44);
+  doc.setFontSize(11);
+  doc.text(`FF  ${params.depIcao}ZPZX ${params.destIcao}ZPZX`, 12, 47);
+  doc.text(`${new Date().getUTCHours().toString().padStart(2, '0')}${new Date().getUTCMinutes().toString().padStart(2, '0')} UTC  ${params.callsign}`, 110, 47);
 
   // Casilla 7 & 8
-  doc.rect(10, 50, 95, 16);
+  doc.rect(10, 52, 95, 17);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('7. IDENTIFICACIÓN AERONAVE', 12, 54);
+  doc.setFontSize(8);
+  doc.text('7. IDENTIFICACIÓN AERONAVE', 12, 56);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(11);
-  doc.text(params.callsign, 15, 62);
+  doc.setFontSize(13);
+  doc.text(params.callsign, 15, 65);
 
-  doc.rect(105, 50, 95, 16);
+  doc.rect(105, 52, 95, 17);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('8. REGLAS DE VUELO / TIPO DE VUELO', 107, 54);
+  doc.setFontSize(8);
+  doc.text('8. REGLAS DE VUELO / TIPO DE VUELO', 107, 56);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(11);
-  doc.text(`${params.flightRules}    ${params.flightType}`, 120, 62);
+  doc.setFontSize(13);
+  doc.text(`${params.flightRules}    ${params.flightType}`, 120, 65);
 
   // Casilla 9 & 10
-  doc.rect(10, 68, 95, 16);
+  doc.rect(10, 71, 95, 17);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('9. NÚMERO / TIPO AERONAVE / ESTELA', 12, 72);
+  doc.setFontSize(8);
+  doc.text('9. NÚMERO / TIPO AERONAVE / ESTELA', 12, 75);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(11);
-  doc.text(`1  ${params.aircraftType} / ${params.wakeTurbulence}`, 15, 80);
+  doc.setFontSize(13);
+  doc.text(`1  ${params.aircraftType} / ${params.wakeTurbulence}`, 15, 84);
 
-  doc.rect(105, 68, 95, 16);
+  doc.rect(105, 71, 95, 17);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('10. EQUIPO NAVEGACIÓN & TRANSPONDER', 107, 72);
+  doc.setFontSize(8);
+  doc.text('10. EQUIPO NAVEGACIÓN & TRANSPONDER', 107, 75);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(11);
-  doc.text(`${params.equipment} / ${params.transponder}`, 120, 80);
+  doc.setFontSize(13);
+  doc.text(`${params.equipment} / ${params.transponder}`, 120, 84);
 
   // Casilla 13
-  doc.rect(10, 86, 190, 16);
+  doc.rect(10, 90, 190, 17);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('13. AERÓDROMO DE SALIDA & HORA EOBT (UTC)', 12, 90);
+  doc.setFontSize(8);
+  doc.text('13. AERÓDROMO DE SALIDA & HORA EOBT (UTC)', 12, 94);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(11);
-  doc.text(`${params.depIcao}   ${params.eobtTime} UTC`, 15, 98);
+  doc.setFontSize(13);
+  doc.text(`${params.depIcao}   ${params.eobtTime} UTC`, 15, 103);
 
   // Casilla 15
-  doc.rect(10, 104, 190, 24);
+  doc.rect(10, 109, 190, 27);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('15. VELOCIDAD DE CRUCERO / NIVEL / RUTA SOLICITADA', 12, 108);
+  doc.setFontSize(8);
+  doc.text('15. VELOCIDAD DE CRUCERO / NIVEL / RUTA SOLICITADA', 12, 113);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(10);
-  doc.text(`${params.cruiseSpeed}  ${params.cruiseLevel}`, 15, 115);
-  doc.text(params.routeText, 15, 123);
+  doc.setFontSize(12);
+  doc.text(`${params.cruiseSpeed}  ${params.cruiseLevel}`, 15, 121);
+  doc.setFontSize(11);
+  const splitRoute = doc.splitTextToSize(params.routeText, 182);
+  doc.text(splitRoute, 15, 129);
 
   // Casilla 16
-  doc.rect(10, 130, 190, 18);
+  doc.rect(10, 138, 190, 20);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('16. AERÓDROMO DE DESTINO & EET / ALTERNATIVOS', 12, 134);
+  doc.setFontSize(8);
+  doc.text('16. AERÓDROMO DE DESTINO & EET / ALTERNATIVOS', 12, 142);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(10);
-  doc.text(`DESTINO: ${params.destIcao}   EET: ${params.eetTime} M`, 15, 142);
-  doc.text(`ALTN 1: ${params.altn1Icao}   ALTN 2: ${params.altn2Icao}`, 110, 142);
+  doc.setFontSize(12);
+  doc.text(`DESTINO: ${params.destIcao}   EET: ${params.eetTime} M`, 15, 150);
+  doc.text(`ALTN 1: ${params.altn1Icao}   ALTN 2: ${params.altn2Icao}`, 15, 157);
 
   // Casilla 18
-  doc.rect(10, 150, 190, 26);
+  doc.rect(10, 160, 190, 29);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('18. OTROS DATOS (DATOS OACI / REMARKS)', 12, 154);
+  doc.setFontSize(8);
+  doc.text('18. OTROS DATOS (DATOS OACI / REMARKS)', 12, 164);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(10.5);
   const splitOther = doc.splitTextToSize(params.otherInfo, 182);
-  doc.text(splitOther, 15, 162);
+  doc.text(splitOther, 15, 173);
 
-  // Casilla 19 - Suplementaria (Búsqueda y Salvamento)
-  doc.rect(10, 178, 190, 45);
+  // Casilla 19 - Suplementaria (Búsqueda y Salvamento) — ICAO Doc 4444 Apéndice 2
+  doc.rect(10, 191, 190, 60);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.text('19. INFORMACIÓN SUPLEMENTARIA (INFORMACIÓN SAR & SUPERVIVENCIA)', 12, 182);
+  doc.setFontSize(8.5);
+  doc.text('19. INFORMACIÓN SUPLEMENTARIA (INFORMACIÓN SAR & SUPERVIVENCIA)', 12, 195);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(9);
-  doc.text(`E / ${params.enduranceHours}    P / ${params.pobCount}`, 15, 189);
-  doc.text(`R / V / S (RADIO ULTRA HIGH / VERY HIGH / SALVAMENTO)`, 15, 196);
-  doc.text(`J / L / F (CHALECOS LUZ / FLUOR / FRECUENCIA)`, 15, 203);
-  doc.text(`D / 1  6 PAX  C/NARANJA (BALSA 6 PAX CON CUBIERTA)`, 15, 210);
-  doc.text(`A / ${params.aircraftColor}`, 15, 217);
+  doc.setFontSize(10.5);
+  const dinghyCoverTxt = params.dinghyCovered ? 'C' : 'SIN C';
+  doc.text(`E / ${params.enduranceHours}    P / ${params.pobCount}`, 15, 203);
+  doc.text(`R / ${params.radioCode || 'NIL'} (RADIO EMERGENCIA UHF 243,0 / VHF 121,5 / ELT)`, 15, 210);
+  doc.text(`S / ${params.survivalCode || 'NIL'} (EQUIPO SUPERVIVENCIA POLAR/DESIERTO/MARÍTIMO/SELVA)`, 15, 217);
+  doc.text(`J / ${params.jacketsCode || 'NIL'} (CHALECOS LUZ/FLUORESCEÍNA)`, 15, 224);
+  doc.text(`D / ${params.dinghyCount}  ${params.dinghyCapacity} PAX  ${dinghyCoverTxt}  ${params.dinghyColor}`, 15, 231);
+  doc.text(`A / ${params.aircraftColor}`, 15, 238);
+  doc.setFontSize(9.5);
+  const splitRemarksN = doc.splitTextToSize(`N / ${params.remarksN || 'NIL'}`, 182);
+  doc.text(splitRemarksN, 15, 245);
 
   // Signatures
-  doc.rect(10, 226, 95, 30);
-  doc.rect(105, 226, 95, 30);
+  doc.rect(10, 255, 95, 32);
+  doc.rect(105, 255, 95, 32);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.text('PILOTO AL MANDO (PIC) / FIRMA', 12, 230);
-  doc.text('DESPACHANTE OACI / EANA ARO-AIS SALIDA', 107, 230);
+  doc.setFontSize(8);
+  doc.text('PILOTO AL MANDO (PIC) / FIRMA', 12, 259);
+  doc.text('DESPACHANTE OACI / EANA ARO-AIS SALIDA', 107, 259);
+  if (params.pilotSignatureDataUrl) {
+    try {
+      doc.addImage(params.pilotSignatureDataUrl, 'PNG', 12, 261, 60, 16);
+    } catch {
+      // Malformed/unsupported image data — fall back to the blank signature box.
+    }
+  }
   doc.setFont('courier', 'bold');
+  doc.setFontSize(11);
+  doc.text(params.picName, 12, 277);
+  doc.setFont('courier', 'normal');
   doc.setFontSize(9);
-  doc.text(params.picName, 12, 252);
-  doc.text('OFICINA DE NOTIFICACIÓN ARO-AIS', 107, 252);
+  const picContactLine = [
+    params.picLicenseType && `LIC ${params.picLicenseType}`,
+    params.picLicenseNumber && `N° ${params.picLicenseNumber}`,
+    params.picPhone && `CEL ${params.picPhone}`
+  ].filter(Boolean).join('   ');
+  if (picContactLine) doc.text(picContactLine, 12, 282);
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(10);
+  doc.text('OFICINA DE NOTIFICACIÓN ARO-AIS', 107, 277);
 
-  doc.save(`Plan_de_Vuelo_EANA_1801_${params.callsign}_${Date.now()}.pdf`);
+  return doc;
+}
+
+// Saves the FPL 1801 document to the browser's downloads location (the user's chosen
+// download folder on desktop, tablet or mobile).
+export function generateEanaFlightPlanPDF(params: EanaFlightPlanParams) {
+  const doc = buildEanaFlightPlanDoc(params);
+  doc.save(eanaFlightPlanFileName(params.callsign));
 }

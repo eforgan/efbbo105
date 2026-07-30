@@ -53,7 +53,7 @@ const GROUPS: { groupName: string; items: FeatureCardData[] }[] = [
   {
     groupName: 'Despacho & Documentación',
     items: [
-      { id: 'fplan', icon: FileText, title: 'Plan de Vuelo OACI EANA', description: 'Formulario reglamentario FPL 1801, con envío por correo a ARO-AIS y descarga en PDF.' },
+      { id: 'fplan', icon: FileText, title: 'Plan de Vuelo OACI EANA', description: 'Formulario reglamentario FPL 1801, con descarga en PDF firmado y envío como adjunto de correo.' },
       { id: 'library', icon: BookOpen, title: 'Biblioteca ANAC & RFM', description: 'Documentación oficial: RFM BO105 CBS-4, RAAC 91/135 y manuales operativos Modena.' },
       { id: 'logbook', icon: Book, title: 'Bitácora Digital', description: 'Registro de vuelos por misión, horas, combustible y aterrizajes, exportable a CSV.' },
       { id: 'dispatch', icon: FileCheck, title: 'Despacho PDF Oficial', description: 'Hoja de despacho con los datos reales de W&B, performance y ruta configurados en la app.' },

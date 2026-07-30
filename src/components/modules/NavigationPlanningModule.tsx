@@ -8,9 +8,10 @@ import {
 } from 'lucide-react';
 import { AerodromeRecord, MetarStationInfo, RoutePoint } from '../../types/efb';
 import { searchAerodromes, dmsToDecimal, findNearbyAerodromes, DmsInput } from '../../lib/aerodromeSearch';
-import { calculateDistanceNm, calculateHeadingDeg, calculateWB } from '../../lib/calculations';
+import { calculateDistanceNm, calculateHeadingDeg, calculateMidpoint, calculateWB } from '../../lib/calculations';
 import { BO105_SPECS, OACI_RISK_FACTORS } from '../../lib/bo105-specs';
 import { useEfbData } from '../../context/EfbDataContext';
+import { SyncBadge } from '../SyncBadge';
 import { RouteMap } from '../nav/RouteMap';
 import type { TafSummary } from '../../app/api/weather/route';
 
@@ -60,7 +61,7 @@ function buildLegGeometry(points: RoutePoint[]): LegGeometry[] {
 const emptyDms = (hemisphere: DmsInput['hemisphere']): DmsInput => ({ deg: 0, min: 0, sec: 0, hemisphere });
 
 export const NavigationPlanningModule: React.FC = () => {
-  const { stations, mission, routePoints: points, setRoutePoints: setPoints, savedRoutePlans, setSavedRoutePlans, addRiskLogEntry, riskLog } = useEfbData();
+  const { stations, mission, routePoints: points, setRoutePoints: setPoints, savedRoutePlans, upsertRoutePlan, deleteRoutePlan, addRiskLogEntry, riskLog } = useEfbData();
   const [patientLegKeys, setPatientLegKeys] = React.useState<Set<string>>(new Set());
   const [overwaterLegKeys, setOverwaterLegKeys] = React.useState<Set<string>>(new Set());
   const [query, setQuery] = React.useState('');
@@ -233,11 +234,64 @@ export const NavigationPlanningModule: React.FC = () => {
     }]);
   };
 
+  // Inserts a refueling stop right between the two points of the leg it was suggested for,
+  // splitting one over-range leg into two shorter ones instead of appending to the route end.
+  const insertRefuelStop = (afterPointId: string, rec: AerodromeRecord) => {
+    setPoints(prev => {
+      const idx = prev.findIndex(p => p.id === afterPointId);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next.splice(idx + 1, 0, {
+        id: `${rec.icao || rec.localCode || rec.name}-${Date.now()}`,
+        code: rec.icao || rec.localCode || '—',
+        name: rec.name,
+        lat: rec.lat,
+        lon: rec.lon,
+        isAlternate: false,
+        isManual: false,
+      });
+      return next;
+    });
+  };
+
   const tripFuelKg = (totalTimeMin / 60) * fuelBurnKgH;
   const alternateFuelKg = farthestAlternate ? (farthestAlternate.timeMin / 60) * fuelBurnKgH : 0;
   const reserveFuelKg = (reserveMin / 60) * fuelBurnKgH;
   const totalFuelRequiredKg = tripFuelKg + alternateFuelKg + reserveFuelKg;
   const exceedsCapacity = totalFuelRequiredKg > BO105_SPECS.maxFuelKg;
+
+  // Per-leg autonomy check: distinct from the total-route fuel check above. Even when the
+  // route refuels at every stop, no single non-stop leg can require more than a full tank
+  // minus reserve — there's nowhere to take on fuel mid-leg. Compared against leg.timeMin
+  // (not a fixed NM threshold) so a headwind-slowed leg is correctly flagged even if its
+  // great-circle distance alone would look fine in still air.
+  const usableFuelKg = Math.max(0, BO105_SPECS.maxFuelKg - reserveFuelKg);
+  const usableEnduranceMin = (usableFuelKg / fuelBurnKgH) * 60;
+  const maxLegRangeNm = (usableEnduranceMin / 60) * CRUISE_SPEED_KT;
+  const overRangeLegs = legs.filter(l => l.timeMin > usableEnduranceMin);
+  const anyLegOverRange = overRangeLegs.length > 0;
+
+  // For each over-range leg, look for a refueling stop near its midpoint that's actually
+  // reachable from BOTH endpoints within maxLegRangeNm — a candidate merely close to the
+  // midpoint geographically isn't good enough if it's still too far from one side. When the
+  // leg is more than two full ranges long, no single stop can bridge it at all.
+  const refuelSuggestions = React.useMemo(() => {
+    const map = new Map<string, (AerodromeRecord & { distFromOriginNm: number; distToDestNm: number })[]>();
+    if (overRangeLegs.length === 0) return map;
+    const usedCodes = new Set(points.map(p => p.code));
+    for (const leg of overRangeLegs) {
+      if (leg.distanceNm > maxLegRangeNm * 2) { map.set(leg.key, []); continue; }
+      const mid = calculateMidpoint(leg.from, leg.to);
+      const candidates = findNearbyAerodromes(mid, maxLegRangeNm, 30)
+        .filter(c => !usedCodes.has(c.icao || c.localCode || ''))
+        .map(c => ({ ...c, distFromOriginNm: calculateDistanceNm(leg.from, c), distToDestNm: calculateDistanceNm(c, leg.to) }))
+        .filter(c => c.distFromOriginNm <= maxLegRangeNm && c.distToDestNm <= maxLegRangeNm)
+        .sort((a, b) => (a.distFromOriginNm + a.distToDestNm) - (b.distFromOriginNm + b.distToDestNm))
+        .slice(0, 5);
+      map.set(leg.key, candidates);
+    }
+    return map;
+  }, [overRangeLegs, maxLegRangeNm, points]);
 
   const routeIcaoCodes = React.useMemo(
     () => points.filter(p => !p.isManual && /^[A-Z]{4}$/.test(p.code)).map(p => p.code),
@@ -293,6 +347,12 @@ export const NavigationPlanningModule: React.FC = () => {
   const goNoGoBlockers: string[] = [];
   if (legs.length === 0) goNoGoBlockers.push('Cargá al menos un tramo de ruta para evaluar el despacho.');
   if (exceedsCapacity) goNoGoBlockers.push('Combustible programado excede la capacidad utilizable.');
+  if (anyLegOverRange) {
+    goNoGoBlockers.push(
+      `Tramo${overRangeLegs.length > 1 ? 's' : ''} ${overRangeLegs.map(l => `${l.from.code} ➔ ${l.to.code}`).join(', ')} ` +
+      `supera${overRangeLegs.length > 1 ? 'n' : ''} la autonomía máxima sin reabastecer (${maxLegRangeNm.toFixed(0)} NM / ${usableEnduranceMin.toFixed(0)} min con reserva de ${reserveMin} min) — agregá una escala intermedia.`
+    );
+  }
   if (anyLegOverMtow) goNoGoBlockers.push('Al menos un tramo excede el MTOW con la carga actual.');
   if (!isOverwaterSafe) goNoGoBlockers.push(`Exposición overwater (${overwaterTimeMin.toFixed(0)} min) excede el límite de ${OVERWATER_LIMIT_MIN} min.`);
   if (worstFlightCategory === 'IFR' || worstFlightCategory === 'LIFR') goNoGoBlockers.push(`Meteorología ${worstFlightCategory} reportada en la ruta — por debajo de mínimos VFR HEMS.`);
@@ -315,7 +375,7 @@ export const NavigationPlanningModule: React.FC = () => {
   const handleSavePlan = (e: React.FormEvent) => {
     e.preventDefault();
     if (!planName.trim() || points.length === 0) return;
-    setSavedRoutePlans(prev => [{ id: `plan-${Date.now()}`, name: planName.trim(), savedAtIso: new Date().toISOString(), points }, ...prev].slice(0, 30));
+    upsertRoutePlan({ id: `plan-${Date.now()}`, name: planName.trim(), savedAtIso: new Date().toISOString(), points });
     setPlanName('');
     setSaveFlash(true);
     setTimeout(() => setSaveFlash(false), 2000);
@@ -326,7 +386,7 @@ export const NavigationPlanningModule: React.FC = () => {
     if (plan) setPoints(plan.points);
   };
 
-  const deletePlan = (planId: string) => setSavedRoutePlans(prev => prev.filter(p => p.id !== planId));
+  const deletePlan = (planId: string) => deleteRoutePlan(planId);
 
   const handleLogRiskAssessment = () => {
     addRiskLogEntry({
@@ -351,6 +411,7 @@ export const NavigationPlanningModule: React.FC = () => {
             Preparación de vuelo por tramos contra el listado de aeródromos, aeropuertos y helipuertos de Argentina — crucero fijo {CRUISE_SPEED_KT} kt TAS.
           </p>
         </div>
+        <SyncBadge />
       </div>
 
       {/* Add waypoint */}
@@ -554,12 +615,15 @@ export const NavigationPlanningModule: React.FC = () => {
                 {legs.map((leg, idx) => {
                   const w = legWeights[idx];
                   const overMtow = w.weightAtStartKg > BO105_SPECS.mtowKg;
+                  const overRange = leg.timeMin > usableEnduranceMin;
                   const isOverwaterLeg = overwaterLegKeys.has(leg.key);
                   return (
                     <tr key={leg.key} className="hover:bg-slate-900/40">
                       <td className="py-2 px-2 text-slate-200 font-medium">{leg.from.code} ➔ {leg.to.code}</td>
                       <td className="py-2 px-2 text-cyan-400 font-bold">{leg.headingDeg}° M</td>
-                      <td className="py-2 px-2">{leg.distanceNm.toFixed(1)} NM</td>
+                      <td className={`py-2 px-2 font-bold ${overRange ? 'text-rose-400' : ''}`}>
+                        {leg.distanceNm.toFixed(1)} NM{overRange ? ' ⚠' : ''}
+                      </td>
                       <td className="py-2 px-2">
                         {Math.round(leg.groundSpeedKt)} kt{leg.windCorrected && <Wind className="w-3 h-3 inline ml-1 text-cyan-400" />}
                       </td>
@@ -603,6 +667,49 @@ export const NavigationPlanningModule: React.FC = () => {
           {anyLegOverMtow && (
             <div className="p-2.5 rounded-lg border border-rose-500/40 bg-rose-950/30 text-rose-300 flex items-center gap-2 text-[11px]">
               <AlertTriangle className="w-4 h-4 shrink-0" /> Al menos un tramo excede el MTOW ({BO105_SPECS.mtowKg} kg) con la carga actual de Peso &amp; Balanceo — ajustá la carga o el combustible antes de despachar.
+            </div>
+          )}
+
+          {anyLegOverRange && (
+            <div className="p-3 rounded-lg border border-rose-500/40 bg-rose-950/30 text-rose-300 space-y-2.5 text-[11px]">
+              <div className="flex items-center gap-2">
+                <Fuel className="w-4 h-4 shrink-0" />
+                <span>
+                  Tramo{overRangeLegs.length > 1 ? 's' : ''} marcado{overRangeLegs.length > 1 ? 's' : ''} en rojo
+                  super{overRangeLegs.length > 1 ? 'an' : 'a'} el alcance máximo sin reabastecer: <strong>{maxLegRangeNm.toFixed(0)} NM</strong> ({usableEnduranceMin.toFixed(0)} min
+                  de autonomía con {BO105_SPECS.maxFuelKg} kg de combustible y {reserveMin} min de reserva).
+                </span>
+              </div>
+              {overRangeLegs.map(leg => {
+                const suggestions = refuelSuggestions.get(leg.key) ?? [];
+                return (
+                  <div key={leg.key} className="pl-6 space-y-1">
+                    <span className="text-rose-200 font-bold">{leg.from.code} ➔ {leg.to.code} ({leg.distanceNm.toFixed(0)} NM):</span>
+                    {leg.distanceNm > maxLegRangeNm * 2 ? (
+                      <p className="text-rose-300/90">
+                        Supera el doble del alcance máximo — no alcanza con una sola escala intermedia, hacen falta al menos dos.
+                      </p>
+                    ) : suggestions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestions.map((s, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => insertRefuelStop(leg.from.id, s)}
+                            className="px-2 py-1 rounded-lg text-[10px] bg-slate-900/80 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/40 text-slate-300 hover:text-emerald-300 cursor-pointer flex items-center gap-1"
+                            title={`${s.distFromOriginNm.toFixed(0)} NM desde ${leg.from.code}, ${s.distToDestNm.toFixed(0)} NM hasta ${leg.to.code}`}
+                          >
+                            <Plus className="w-3 h-3" /> {s.icao || s.localCode} — {s.name} ({s.distFromOriginNm.toFixed(0)}+{s.distToDestNm.toFixed(0)} NM)
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-rose-300/90">
+                        No se encontró un aeródromo/helipuerto del listado alcanzable desde ambos puntos — verificá y cargá una escala manual.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -679,6 +786,11 @@ export const NavigationPlanningModule: React.FC = () => {
             <div className={`p-3 rounded-lg border ${exceedsCapacity ? 'bg-rose-950/30 border-rose-500/40' : 'bg-emerald-950/30 border-emerald-500/40'}`}>
               <span className="text-[10px] text-slate-400">Total Programado</span>
               <p className={`text-lg font-bold ${exceedsCapacity ? 'text-rose-400' : 'text-emerald-400'}`}>{Math.round(totalFuelRequiredKg)} kg</p>
+            </div>
+            <div className={`p-3 rounded-lg border ${anyLegOverRange ? 'bg-rose-950/30 border-rose-500/40' : 'bg-slate-900/80 border-slate-800'}`}>
+              <span className="text-[10px] text-slate-400">Alcance Máx. por Tramo (sin reabastecer)</span>
+              <p className={`text-lg font-bold ${anyLegOverRange ? 'text-rose-400' : 'text-slate-100'}`}>{maxLegRangeNm.toFixed(0)} NM</p>
+              <p className="text-[9px] text-slate-500 mt-0.5">{usableEnduranceMin.toFixed(0)} min con tanque lleno ({BO105_SPECS.maxFuelKg} kg) y reserva de {reserveMin} min</p>
             </div>
           </div>
 

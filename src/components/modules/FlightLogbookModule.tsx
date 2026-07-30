@@ -1,85 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Book, Plus, Download, CheckCircle2 } from 'lucide-react';
-import { FlightLogEntry, MissionType } from '../../types/efb';
+import { Book, Plus, Download, CheckCircle2, Trash2 } from 'lucide-react';
+import { MissionType } from '../../types/efb';
 import { useEfbData } from '../../context/EfbDataContext';
-
-const INITIAL_LOGS: FlightLogEntry[] = [
-  {
-    id: 'log-1',
-    date: '2026-07-22',
-    missionType: 'hems-neuquen-vista',
-    departurePoint: 'SAZN - Neuquén',
-    destinationPoint: 'ANL - Añelo (Vaca Muerta)',
-    flightTimeHours: 1.4,
-    fuelUsedKg: 250,
-    picName: 'Cap. Juan Pérez (PIC)',
-    sicName: 'Of. Esteban Gómez',
-    landingsCount: 2,
-    notes: 'Vuelo HEMS evacuación de trauma. Viento de ráfaga 28kt en Añelo.'
-  },
-  {
-    id: 'log-2',
-    date: '2026-07-20',
-    missionType: 'hems-rosario-utv',
-    departurePoint: 'SAAR - Rosario',
-    destinationPoint: 'HSP - Sanatorio Parque',
-    flightTimeHours: 0.8,
-    fuelUsedKg: 145,
-    picName: 'Cap. Juan Pérez (PIC)',
-    sicName: 'Dr. Carlos Rossi',
-    landingsCount: 1,
-    notes: 'Transferencia interhospitalaria UTV. Poso helipuerto Sanatorio Parque OK.'
-  },
-  {
-    id: 'log-3',
-    date: '2026-07-18',
-    missionType: 'hems-same-ba',
-    departurePoint: 'SABE - Aeroparque',
-    destinationPoint: 'HBR - Helipuerto SAME Ruiz',
-    flightTimeHours: 0.6,
-    fuelUsedKg: 110,
-    picName: 'Cap. Juan Pérez (PIC)',
-    sicName: 'Of. Esteban Gómez',
-    landingsCount: 1,
-    notes: 'Respuesta código rojo SAME Aéreo. VFR Urbano sin novedades.'
-  }
-];
-
-const STORAGE_KEY = 'modena-efb-logbook-v1';
+import { SyncBadge } from '../SyncBadge';
 
 export const FlightLogbookModule: React.FC = () => {
-  const { activeProfile } = useEfbData();
-  const [logs, setLogs] = React.useState<FlightLogEntry[]>(INITIAL_LOGS);
-  const [hydrated, setHydrated] = React.useState(false);
+  const { activeProfile, flightLogs: logs, upsertFlightLog, deleteFlightLog } = useEfbData();
   const [showForm, setShowForm] = React.useState(false);
-
-  // Load any previously saved logbook from this device on mount. Deliberately
-  // seeded post-mount (not via a lazy useState initializer) so the SSR/first
-  // client render both output the same seed data and hydration never mismatches.
-  React.useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from localStorage on mount, not a render loop
-        setLogs(JSON.parse(stored));
-      }
-    } catch {
-      // Corrupted or inaccessible storage — keep the seed logbook.
-    }
-    setHydrated(true);
-  }, []);
-
-  // Persist every change locally so entries survive a refresh.
-  React.useEffect(() => {
-    if (!hydrated) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
-    } catch {
-      // Storage unavailable (private browsing / quota) — nothing to do.
-    }
-  }, [logs, hydrated]);
 
   // New Form State
   const [date, setDate] = React.useState(new Date().toISOString().split('T')[0]);
@@ -103,7 +32,7 @@ export const FlightLogbookModule: React.FC = () => {
 
   const handleAddLog = (e: React.FormEvent) => {
     e.preventDefault();
-    const newLog: FlightLogEntry = {
+    upsertFlightLog({
       id: `log-${Date.now()}`,
       date,
       missionType,
@@ -114,8 +43,7 @@ export const FlightLogbookModule: React.FC = () => {
       picName,
       landingsCount,
       notes
-    };
-    setLogs([newLog, ...logs]);
+    });
     setShowForm(false);
     setNotes('');
   };
@@ -160,6 +88,7 @@ export const FlightLogbookModule: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Nuevo Vuelo
           </button>
+          <SyncBadge />
         </div>
       </div>
 
@@ -337,6 +266,7 @@ export const FlightLogbookModule: React.FC = () => {
                 <th className="p-3">Landings</th>
                 <th className="p-3">PIC</th>
                 <th className="p-3">Observaciones</th>
+                <th className="p-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-200">
@@ -356,6 +286,11 @@ export const FlightLogbookModule: React.FC = () => {
                   <td className="p-3 text-emerald-400 font-bold">{log.landingsCount}</td>
                   <td className="p-3 text-slate-400 text-[10px]">{log.picName}</td>
                   <td className="p-3 text-slate-400 text-[10px]">{log.notes || '-'}</td>
+                  <td className="p-3">
+                    <button onClick={() => deleteFlightLog(log.id)} className="p-1 text-rose-400 hover:text-rose-300 cursor-pointer" title="Eliminar registro">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

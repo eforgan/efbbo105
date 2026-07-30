@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       groupName: 'INICIO',
       items: [
         { id: 'home', label: 'Inicio', icon: Home },
-        { id: 'profile', label: 'Roster Tripulantes', icon: UserCircle },
+        { id: 'profile', label: 'Roster Tripulantes', icon: UserCircle, badge: 'Cloud' },
       ],
     },
     {

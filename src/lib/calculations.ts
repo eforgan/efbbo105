@@ -118,6 +118,22 @@ export function calculateDistanceNm(w1: LatLon, w2: LatLon): number {
   return Math.round(R * c * 10) / 10;
 }
 
+// Great-circle midpoint between two waypoints — used to search for a refueling stop when a
+// leg exceeds the aircraft's range, since a valid stop must sit roughly between both points.
+export function calculateMidpoint(w1: LatLon, w2: LatLon): LatLon {
+  const lat1 = (w1.lat * Math.PI) / 180;
+  const lon1 = (w1.lon * Math.PI) / 180;
+  const lat2 = (w2.lat * Math.PI) / 180;
+  const dLon = ((w2.lon - w1.lon) * Math.PI) / 180;
+
+  const bx = Math.cos(lat2) * Math.cos(dLon);
+  const by = Math.cos(lat2) * Math.sin(dLon);
+  const lat3 = Math.atan2(Math.sin(lat1) + Math.sin(lat2), Math.sqrt((Math.cos(lat1) + bx) ** 2 + by ** 2));
+  const lon3 = lon1 + Math.atan2(by, Math.cos(lat1) + bx);
+
+  return { lat: (lat3 * 180) / Math.PI, lon: (((lon3 * 180) / Math.PI + 540) % 360) - 180 };
+}
+
 export function calculateHeadingDeg(w1: LatLon, w2: LatLon): number {
   const y = Math.sin(((w2.lon - w1.lon) * Math.PI) / 180) * Math.cos((w2.lat * Math.PI) / 180);
   const x =
@@ -127,6 +143,37 @@ export function calculateHeadingDeg(w1: LatLon, w2: LatLon): number {
       Math.cos(((w2.lon - w1.lon) * Math.PI) / 180);
   const brng = (Math.atan2(y, x) * 180) / Math.PI;
   return Math.round((brng + 360) % 360);
+}
+
+export interface VfrCruisingLevel {
+  altitudeFt: number;
+  formatted: string; // ICAO Casilla 15 format, e.g. "A045" = 4,500 ft
+  parity: 'IMPAR' | 'PAR';
+  isMandatory: boolean; // AIP Argentina GEN 3.3 / Reglamento de Vuelos N.91: obligatorio a partir de 3,000 ft
+}
+
+// Semicircular (hemispheric) cruising altitude rule for uncontrolled VFR flights, per AIP
+// Argentina GEN 3.3 and Reglamento de Vuelos N° 91: track 000-179° -> odd thousand of feet,
+// track 180-359° -> even thousand of feet, +500 ft when uncontrolled. Mandatory only above
+// 3,000 ft; below that a specific level need not be filed (item 15 can read "VFR").
+export function calculateVfrCruisingLevel(trackDeg: number, desiredAltFt: number): VfrCruisingLevel {
+  const normalizedTrack = ((trackDeg % 360) + 360) % 360;
+  const needsOdd = normalizedTrack < 180;
+
+  let thousands = Math.max(3, Math.round(desiredAltFt / 1000));
+  if ((thousands % 2 === 1) !== needsOdd) {
+    const down = thousands - 1;
+    const up = thousands + 1;
+    thousands = Math.abs(desiredAltFt - down * 1000) <= Math.abs(desiredAltFt - up * 1000) ? down : up;
+  }
+
+  const altitudeFt = thousands * 1000 + 500;
+  return {
+    altitudeFt,
+    formatted: `A${String(Math.round(altitudeFt / 100)).padStart(3, '0')}`,
+    parity: needsOdd ? 'IMPAR' : 'PAR',
+    isMandatory: desiredAltFt >= 3000
+  };
 }
 
 export function buildRouteLegs(waypoints: Waypoint[], cruiseSpeedKt: number = 110, fuelBurnKgH: number = 180): RouteLeg[] {

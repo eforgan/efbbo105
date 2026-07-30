@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { CrewProfile, CrewRole } from '../../types/efb';
+import { CrewProfile, CrewRole, PilotLicenseType } from '../../types/efb';
 import { useEfbData } from '../../context/EfbDataContext';
+import { SyncBadge } from '../SyncBadge';
 import { Save, Trash2, ShieldCheck, Info, Users, CheckCircle2, AlertTriangle, UserCheck } from 'lucide-react';
 
 const ROLE_LABELS: Record<CrewRole, string> = {
@@ -12,7 +13,18 @@ const ROLE_LABELS: Record<CrewRole, string> = {
   despachante: 'Despachante / ARO-AIS',
 };
 
-const EMPTY_FORM = { fullName: '', role: 'PIC' as CrewRole, licenseNumber: '', email: '', phone: '', licenseExpiry: '', medicalExpiry: '' };
+const LICENSE_TYPE_LABELS: Record<PilotLicenseType, string> = {
+  PCH: 'PCH - Piloto Comercial de Helicóptero',
+  PLH: 'PLH - Piloto de Línea Aérea de Helicóptero',
+  PPH: 'PPH - Piloto Privado de Helicóptero',
+  INST: 'INST - Instructor de Vuelo',
+  OTRO: 'OTRO',
+};
+
+const EMPTY_FORM = {
+  fullName: '', role: 'PIC' as CrewRole, licenseType: '' as PilotLicenseType | '', licenseNumber: '',
+  email: '', phone: '', whatsapp: '', licenseExpiry: '', medicalExpiry: '',
+};
 
 function daysUntil(dateStr?: string): number | null {
   if (!dateStr) return null;
@@ -32,7 +44,7 @@ function expiryStatus(dateStr?: string): { label: string; color: string } | null
 }
 
 export const ProfileModule: React.FC = () => {
-  const { profiles, setProfiles, activeProfileId, setActiveProfileId, activeProfile } = useEfbData();
+  const { profiles, upsertProfile, deleteProfile, activeProfileId, setActiveProfileId, activeProfile, syncPin } = useEfbData();
 
   const [form, setForm] = React.useState(EMPTY_FORM);
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -41,8 +53,8 @@ export const ProfileModule: React.FC = () => {
   const startEdit = (p: CrewProfile) => {
     setEditingId(p.id);
     setForm({
-      fullName: p.fullName, role: p.role, licenseNumber: p.licenseNumber, email: p.email, phone: p.phone,
-      licenseExpiry: p.licenseExpiry ?? '', medicalExpiry: p.medicalExpiry ?? '',
+      fullName: p.fullName, role: p.role, licenseType: p.licenseType ?? '', licenseNumber: p.licenseNumber, email: p.email,
+      phone: p.phone, whatsapp: p.whatsapp ?? '', licenseExpiry: p.licenseExpiry ?? '', medicalExpiry: p.medicalExpiry ?? '',
     });
   };
 
@@ -51,11 +63,13 @@ export const ProfileModule: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.fullName.trim()) return;
+    const record = { ...form, fullName: form.fullName.trim(), licenseType: form.licenseType || undefined };
     if (editingId) {
-      setProfiles(prev => prev.map(p => p.id === editingId ? { ...p, ...form, fullName: form.fullName.trim() } : p));
+      const existing = profiles.find(p => p.id === editingId);
+      upsertProfile({ ...(existing as CrewProfile), ...record, id: editingId });
     } else {
-      const id = `crew-${Date.now()}`;
-      setProfiles(prev => [...prev, { id, ...form, fullName: form.fullName.trim() }]);
+      const id = `crew-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      upsertProfile({ id, ...record });
       setActiveProfileId(id);
     }
     setSavedFlash(true);
@@ -64,8 +78,7 @@ export const ProfileModule: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-    setProfiles(prev => prev.filter(p => p.id !== id));
-    if (activeProfileId === id) setActiveProfileId(null);
+    deleteProfile(id);
     if (editingId === id) resetForm();
   };
 
@@ -83,21 +96,25 @@ export const ProfileModule: React.FC = () => {
             <Users className="w-5 h-5 text-cyan-400" /> Roster de Tripulantes
           </h2>
           <p className="text-xs text-slate-400">
-            Registro local de tripulantes de este dispositivo — elegí quién vuela hoy para autocompletar Despacho PDF, Plan de Vuelo OACI y Bitácora.
+            Elegí quién vuela hoy para autocompletar Despacho PDF, Plan de Vuelo OACI y Bitácora.
           </p>
         </div>
-        {activeProfile && (
-          <span className="text-xs bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4" /> Hoy vuela: {activeProfile.fullName}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {activeProfile && (
+            <span className="text-xs bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4" /> Hoy vuela: {activeProfile.fullName}
+            </span>
+          )}
+          <SyncBadge />
+        </div>
       </div>
 
       <div className="glass-card p-4 rounded-xl border border-cyan-500/30 bg-cyan-950/10 text-xs font-mono text-slate-300 flex items-start gap-2">
         <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
         <p>
-          Este roster se guarda <strong>solo en este dispositivo/navegador</strong> (localStorage), no en un servidor ni cuenta en la nube.
-          No es un inicio de sesión con contraseña — es una lista local para no reescribir los datos de cada tripulante en cada módulo.
+          Este roster se guarda en este dispositivo (localStorage) y funciona sin conexión. {syncPin
+            ? 'Con el PIN operativo activo, se sincroniza automáticamente con el roster compartido en cuanto hay conexión.'
+            : 'Ingresá el PIN operativo (arriba) para compartirlo con el resto de la tripulación en la nube.'}
         </p>
       </div>
 
@@ -141,7 +158,8 @@ export const ProfileModule: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  {p.licenseNumber && <span className="text-slate-500">Lic. {p.licenseNumber}</span>}
+                  {p.licenseNumber && <span className="text-slate-500">Lic. {p.licenseType ? `${p.licenseType} ` : ''}{p.licenseNumber}</span>}
+                  {p.phone && <span className="text-slate-500">Cel. {p.phone}</span>}
                   {lic && <span className={`px-1.5 py-0.5 rounded border ${lic.color}`}>Licencia: {lic.label}</span>}
                   {med && <span className={`px-1.5 py-0.5 rounded border ${med.color}`}>Médico: {med.label}</span>}
                 </div>
@@ -168,8 +186,15 @@ export const ProfileModule: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="text-slate-400 block mb-1">Licencia / Matrícula ANAC</label>
-            <input type="text" value={form.licenseNumber} onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })} placeholder="PC-12345" className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" />
+            <label className="text-slate-400 block mb-1">Tipo de Licencia ANAC</label>
+            <select value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value as PilotLicenseType | '' })} className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200">
+              <option value="">Sin especificar</option>
+              {(Object.keys(LICENSE_TYPE_LABELS) as PilotLicenseType[]).map(t => <option key={t} value={t}>{LICENSE_TYPE_LABELS[t]}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-slate-400 block mb-1">Número de Licencia</label>
+            <input type="text" value={form.licenseNumber} onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })} placeholder="12345" className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" />
           </div>
           <div>
             <label className="text-slate-400 block mb-1">Vencimiento Licencia</label>
@@ -186,6 +211,10 @@ export const ProfileModule: React.FC = () => {
           <div>
             <label className="text-slate-400 block mb-1">Teléfono</label>
             <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+54 9 11 0000-0000" className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" />
+          </div>
+          <div>
+            <label className="text-slate-400 block mb-1">WhatsApp</label>
+            <input type="tel" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="+54 9 11 0000-0000" className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" />
           </div>
         </div>
 
