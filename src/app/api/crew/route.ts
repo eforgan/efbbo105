@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../lib/db';
 import { checkCrewPin } from '../../../lib/apiAuth';
+import { sendMail, isMailerConfigured } from '../../../lib/mailer';
 import { CrewProfile, CrewRole, PilotLicenseType } from '../../../types/efb';
 
 const ROLES: CrewRole[] = ['PIC', 'SIC', 'medico', 'despachante'];
@@ -138,6 +139,9 @@ export async function PUT(request: NextRequest) {
   const v = parsed.value;
 
   const sql = getSql();
+  // (xmax = 0) is the standard Postgres tell for "this RETURNING row came from the INSERT
+  // branch, not the ON CONFLICT DO UPDATE branch" — lets the confirmation email below say
+  // "alta" vs "actualización" without a separate existence check.
   const [row] = (await sql`
     INSERT INTO crew_profiles (id, full_name, role, license_type, license_number, phone, whatsapp, email, license_expiry, medical_expiry)
     VALUES (${v.id}, ${v.fullName}, ${v.role}, ${v.licenseType}, ${v.licenseNumber}, ${v.phone}, ${v.whatsapp}, ${v.email}, ${v.licenseExpiry}, ${v.medicalExpiry})
@@ -152,10 +156,33 @@ export async function PUT(request: NextRequest) {
       license_expiry = EXCLUDED.license_expiry,
       medical_expiry = EXCLUDED.medical_expiry,
       updated_at = now()
-    RETURNING ${sql.unsafe(SELECT_COLUMNS)}
-  `) as DbRow[];
+    RETURNING ${sql.unsafe(SELECT_COLUMNS)}, (xmax = 0) AS inserted
+  `) as (DbRow & { inserted: boolean })[];
 
-  return NextResponse.json({ item: toCrewProfile(row) });
+  const profile = toCrewProfile(row);
+  sendCrewConfirmationEmail(profile, row.inserted).catch((err: unknown) => {
+    console.error('No se pudo enviar el email de confirmación de tripulante:', err);
+  });
+
+  return NextResponse.json({ item: profile });
+}
+
+// Copia fija en toda confirmación de alta/actualización de tripulante, además del email
+// propio del tripulante (cuando lo cargó).
+const ADMIN_EMAIL = 'eforgan@gruppomodena.com';
+
+// Fire-and-forget: never let an SMTP hiccup fail the roster save the despachante is
+// waiting on. Silently skipped only when the mailer isn't configured — a registration
+// always notifies ADMIN_EMAIL even if the crew member didn't provide their own address.
+async function sendCrewConfirmationEmail(profile: CrewProfile, isNew: boolean): Promise<void> {
+  if (!isMailerConfigured()) return;
+  const action = isNew ? 'Alta de tripulante registrada' : 'Datos de tripulante actualizados';
+  await sendMail({
+    to: profile.email || ADMIN_EMAIL,
+    cc: profile.email ? ADMIN_EMAIL : undefined,
+    subject: `${action} — ${profile.fullName} (EFB BO105 CBS-4)`,
+    text: `${action} en el roster de Modena Air Service.\n\nNombre: ${profile.fullName}\nRol: ${profile.role}${profile.licenseType ? `\nLicencia: ${profile.licenseType} ${profile.licenseNumber || ''}`.trimEnd() : ''}${profile.licenseExpiry ? `\nVencimiento de licencia: ${profile.licenseExpiry}` : ''}${profile.medicalExpiry ? `\nVencimiento de psicofísico: ${profile.medicalExpiry}` : ''}\n\nSi no reconocés este registro, contactá a operaciones.\n\nEFB BO105 CBS-4 — Modena Air Service.`,
+  });
 }
 
 // DELETE: remove a roster entry by id (?id=...).

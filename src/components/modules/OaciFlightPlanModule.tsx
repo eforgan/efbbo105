@@ -1,13 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Copy, Check, FileText, Share2, ShieldAlert, Plane, Download, PenLine, Stethoscope } from 'lucide-react';
+import { Copy, Check, FileText, Share2, ShieldAlert, Plane, Download, PenLine, Stethoscope, Mail } from 'lucide-react';
 import { buildEanaFlightPlanDoc, eanaFlightPlanFileName, generateEanaFlightPlanPDF } from '../../lib/pdf-generator';
 import { useEfbData } from '../../context/EfbDataContext';
 import { getFleetAircraft } from '../../lib/bo105-specs';
 import { calculateDistanceNm, calculateHeadingDeg, calculateVfrCruisingLevel } from '../../lib/calculations';
 import { SignaturePad } from '../SignaturePad';
 import { MissionType } from '../../types/efb';
+import { telHref } from '../../lib/telHref';
 
 // Debe coincidir con el crucero fijo de "Planificación de Navegación" (CRUISE_SPEED_KT):
 // la Casilla 15 (velocidad) y la Casilla 16 (EET) de este FPL se calculan sobre la misma
@@ -54,8 +55,18 @@ function withRegistration(text: string, registration: string): string {
   return `${text} REG/${registration}`.trim();
 }
 
+// Casilla 18 RMK/ — identificación del operador (AOC), fija en todos los planes de vuelo
+// de Modena Air Service. Va como primer remark dentro de RMK/, antes de cualquier otra nota.
+const OPERATOR_NOTE = 'OPERADOR: FLIGHT EXPRESS S.A.';
+
+function withOperator(text: string): string {
+  const stripped = text.split(OPERATOR_NOTE).join('').replace(/\s{2,}/g, ' ').trim();
+  if (/RMK\//i.test(stripped)) return stripped.replace(/RMK\//i, `RMK/${OPERATOR_NOTE} `);
+  return `${stripped} RMK/${OPERATOR_NOTE}`.trim();
+}
+
 export const OaciFlightPlanModule: React.FC = () => {
-  const { activeProfile, routePoints, mission } = useEfbData();
+  const { activeProfile, routePoints, mission, syncPin } = useEfbData();
   const aircraft = React.useMemo(() => getFleetAircraft(mission), [mission]);
   // Casilla 7 & 8
   const [callsign, setCallsign] = React.useState<string>('LVGID');
@@ -94,7 +105,7 @@ export const OaciFlightPlanModule: React.FC = () => {
 
   // Casilla 18
   const [otherInfo, setOtherInfo] = React.useState<string>(
-    'PBN/A1 NAV/RNV1 REG/LVGID RMK/OPERACION HEMS URGENCIA MEDICA MODENA AIR SERVICE'
+    withOperator('PBN/A1 NAV/RNV1 REG/LVGID RMK/OPERACION HEMS URGENCIA MEDICA MODENA AIR SERVICE')
   );
 
   // Casilla 19 - Autonomía, Personas a Bordo
@@ -220,6 +231,12 @@ export const OaciFlightPlanModule: React.FC = () => {
   const [copied, setCopied] = React.useState<boolean>(false);
   const [shareResult, setShareResult] = React.useState<{ success: boolean; message: string } | null>(null);
   const [isSharing, setIsSharing] = React.useState<boolean>(false);
+  // Canal ARO-AIS/NOTAM real de EANA S.E. (AIP Argentina GEN 3.5-1) — el servicio de
+  // depósito de planes de vuelo es centralizado a nivel nacional, no hay oficina/email
+  // distinto por aeródromo de salida o destino. Editable por si hace falta otro destinatario.
+  const [emailTo, setEmailTo] = React.useState<string>('operaciones@eana.com.ar');
+  const [isSendingEmail, setIsSendingEmail] = React.useState<boolean>(false);
+  const [emailSendResult, setEmailSendResult] = React.useState<{ success: boolean; message: string } | null>(null);
 
   // Load Preset by Base Contract — each contract has its own real assigned tail (BO105_FLEET),
   // so loading a preset also switches callsign/color to that aircraft regardless of whichever
@@ -240,7 +257,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0045');
       setAltn1Icao('SAZN');
       setAltn2Icao('SAOB');
-      setOtherInfo(withStsIndicator(withRegistration('PBN/A1 NAV/RNV1 RMK/CONTRATO VISTA VACA MUERTA HEMS MODENA', presetCallsign), flightNature));
+      setOtherInfo(withStsIndicator(withRegistration(withOperator('PBN/A1 NAV/RNV1 RMK/CONTRATO VISTA VACA MUERTA HEMS MODENA'), presetCallsign), flightNature));
     } else if (preset === 'utv') {
       setDepIcao('SAAR');
       setDestIcao('HSP');
@@ -248,7 +265,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0030');
       setAltn1Icao('SAAR');
       setAltn2Icao('VIC');
-      setOtherInfo(withStsIndicator(withRegistration('PBN/A1 NAV/RNV1 RMK/OPERACION UTV ROSARIO SANATORIO PARQUE', presetCallsign), flightNature));
+      setOtherInfo(withStsIndicator(withRegistration(withOperator('PBN/A1 NAV/RNV1 RMK/OPERACION UTV ROSARIO SANATORIO PARQUE'), presetCallsign), flightNature));
     } else if (preset === 'same') {
       setDepIcao('SABE');
       setDestIcao('HBR');
@@ -256,7 +273,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0025');
       setAltn1Icao('SADF');
       setAltn2Icao('SABE');
-      setOtherInfo(withStsIndicator(withRegistration('PBN/A1 NAV/RNV1 RMK/OPERACION SAME AEREO CÓDIGO ROJO URBANO', presetCallsign), flightNature));
+      setOtherInfo(withStsIndicator(withRegistration(withOperator('PBN/A1 NAV/RNV1 RMK/OPERACION SAME AEREO CÓDIGO ROJO URBANO'), presetCallsign), flightNature));
     } else if (preset === 'ypf') {
       setDepIcao('SA21');
       setDestIcao('SEMINOLE');
@@ -264,7 +281,7 @@ export const OaciFlightPlanModule: React.FC = () => {
       setEetTime('0035');
       setAltn1Icao('SAVY');
       setAltn2Icao('SA21');
-      setOtherInfo(withStsIndicator(withRegistration('PBN/A1 NAV/RNV1 RMK/YPF VMOS OFFSHORE OVERWATER DLV SEMINOLE', presetCallsign), flightNature));
+      setOtherInfo(withStsIndicator(withRegistration(withOperator('PBN/A1 NAV/RNV1 RMK/YPF VMOS OFFSHORE OVERWATER DLV SEMINOLE'), presetCallsign), flightNature));
     }
   };
 
@@ -349,6 +366,38 @@ export const OaciFlightPlanModule: React.FC = () => {
     }
   };
 
+  // Sends the FPL 1801 PDF directly through the EFB's own SMTP relay (no OS share sheet
+  // involved), so it also works on desktop despachante stations that lack a mail app.
+  // Auth reuses the same shared operational PIN as the roster/logbook/route-plan sync.
+  const handleSendEmailSmtp = async () => {
+    if (!syncPin) {
+      setEmailSendResult({ success: false, message: 'Ingresá el PIN operativo (ver Sincronización) antes de enviar por email.' });
+      return;
+    }
+    if (!emailTo.trim()) {
+      setEmailSendResult({ success: false, message: 'Ingresá un email destinatario.' });
+      return;
+    }
+    setIsSendingEmail(true);
+    setEmailSendResult(null);
+    try {
+      const doc = buildEanaFlightPlanDoc(pdfParams);
+      const pdfBase64 = doc.output('datauristring').split(',')[1];
+      const res = await fetch('/api/send-flight-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-crew-pin': syncPin },
+        body: JSON.stringify({ to: emailTo.trim(), callsign, depIcao, destIcao, eobtTime, pdfBase64 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo enviar el email.');
+      setEmailSendResult({ success: true, message: `Plan de vuelo enviado a ${emailTo.trim()}.` });
+    } catch (err: unknown) {
+      setEmailSendResult({ success: false, message: (err as Error).message });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   // Generate Raw ATS Plain Text
   const rawOaciPlan = `(FPL-${callsign}-${flightRules}${flightType}
 -1${aircraftType}/${wakeTurbulence}-${equipment}/${transponder}
@@ -411,6 +460,42 @@ export const OaciFlightPlanModule: React.FC = () => {
         }`}>
           {shareResult.success ? <Check className="w-4 h-4 shrink-0" /> : <ShieldAlert className="w-4 h-4 shrink-0" />}
           <span>{shareResult.message}</span>
+        </div>
+      )}
+
+      {/* Direct SMTP send — works even without a mail app installed (e.g. desktop despachante) */}
+      <div className="glass-card p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono">
+        <div className="flex flex-wrap items-center gap-2">
+          <Mail className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span className="text-xs text-slate-400 font-bold shrink-0">Enviar por Email (directo, ARO-AIS):</span>
+          <input
+            type="email"
+            value={emailTo}
+            onChange={(e) => setEmailTo(e.target.value)}
+            placeholder="destinatario@ejemplo.com"
+            className="flex-1 min-w-[180px] px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500"
+          />
+          <button
+            type="button"
+            onClick={handleSendEmailSmtp}
+            disabled={isSendingEmail}
+            className="px-3.5 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition cursor-pointer disabled:opacity-50"
+          >
+            <Mail className="w-4 h-4" /> {isSendingEmail ? 'Enviando...' : 'Enviar'}
+          </button>
+        </div>
+        <p className="text-[10px] text-slate-600 pl-6">
+          Precompletado con el canal ARO-AIS/NOTAM de EANA S.E. (servicio centralizado, no hay oficina distinta por
+          aeródromo de salida/destino) — editable. Se copia automáticamente a eforgan@gruppomodena.com en todo envío.
+        </p>
+      </div>
+
+      {emailSendResult && (
+        <div className={`p-2.5 rounded-lg border text-xs flex items-center gap-2 font-mono ${
+          emailSendResult.success ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-amber-950/40 border-amber-500/40 text-amber-300'
+        }`}>
+          {emailSendResult.success ? <Check className="w-4 h-4 shrink-0" /> : <ShieldAlert className="w-4 h-4 shrink-0" />}
+          <span>{emailSendResult.message}</span>
         </div>
       )}
 
@@ -887,7 +972,8 @@ export const OaciFlightPlanModule: React.FC = () => {
                 </span>
                 <span className="text-[9px] block">A/{aircraftColor} N/{remarksN || 'NIL'}</span>
                 <span className="text-[9px] font-bold text-slate-700">
-                  C/{picName}{picLicenseType ? ` LIC ${picLicenseType}` : ''}{picLicenseNumber ? ` N° ${picLicenseNumber}` : ''}{picPhone ? ` CEL ${picPhone}` : ''}
+                  C/{picName}{picLicenseType ? ` LIC ${picLicenseType}` : ''}{picLicenseNumber ? ` N° ${picLicenseNumber}` : ''}
+                  {picPhone && <> CEL <a href={telHref(picPhone)} className="underline decoration-dotted">{picPhone}</a></>}
                 </span>
               </div>
             </div>

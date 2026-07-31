@@ -4,7 +4,8 @@ import React from 'react';
 import { CrewProfile, CrewRole, PilotLicenseType } from '../../types/efb';
 import { useEfbData } from '../../context/EfbDataContext';
 import { SyncBadge } from '../SyncBadge';
-import { Save, Trash2, ShieldCheck, Info, Users, CheckCircle2, AlertTriangle, UserCheck } from 'lucide-react';
+import { Save, Trash2, ShieldCheck, Info, Users, CheckCircle2, AlertTriangle, UserCheck, Phone } from 'lucide-react';
+import { telHref } from '../../lib/telHref';
 
 const ROLE_LABELS: Record<CrewRole, string> = {
   PIC: 'Piloto al Mando (PIC)',
@@ -159,7 +160,11 @@ export const ProfileModule: React.FC = () => {
                 </div>
                 <div className="flex flex-wrap gap-1.5 text-[10px]">
                   {p.licenseNumber && <span className="text-slate-500">Lic. {p.licenseType ? `${p.licenseType} ` : ''}{p.licenseNumber}</span>}
-                  {p.phone && <span className="text-slate-500">Cel. {p.phone}</span>}
+                  {p.phone && (
+                    <a href={telHref(p.phone)} className="text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5">
+                      <Phone className="w-2.5 h-2.5" /> {p.phone}
+                    </a>
+                  )}
                   {lic && <span className={`px-1.5 py-0.5 rounded border ${lic.color}`}>Licencia: {lic.label}</span>}
                   {med && <span className={`px-1.5 py-0.5 rounded border ${med.color}`}>Médico: {med.label}</span>}
                 </div>
@@ -207,6 +212,7 @@ export const ProfileModule: React.FC = () => {
           <div>
             <label className="text-slate-400 block mb-1">Email de Contacto</label>
             <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nombre@modenaair.com" className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" />
+            <span className="text-[10px] text-slate-600 mt-1 block">Se envía confirmación de alta/actualización a esta dirección (si se completa) y siempre a eforgan@gruppomodena.com.</span>
           </div>
           <div>
             <label className="text-slate-400 block mb-1">Teléfono</label>

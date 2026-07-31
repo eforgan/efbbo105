@@ -26,6 +26,7 @@ import { HomeModule } from '../components/modules/HomeModule';
 import { OperationManualModule } from '../components/modules/OperationManualModule';
 import { ProfileModule } from '../components/modules/ProfileModule';
 import { NavigationPlanningModule } from '../components/modules/NavigationPlanningModule';
+import { ContactsDirectoryModule } from '../components/modules/ContactsDirectoryModule';
 import { ShieldAlert } from 'lucide-react';
 
 export default function EFBHomePage() {
@@ -101,6 +102,7 @@ function EFBHomeContent() {
           {activeTab === 'library' && <AviationLibraryModule />}
           {activeTab === 'logbook' && <FlightLogbookModule />}
           {activeTab === 'dispatch' && <FlightDispatchPDFModule />}
+          {activeTab === 'contacts' && <ContactsDirectoryModule />}
         </main>
 
         {/* Cockpit Footer */}

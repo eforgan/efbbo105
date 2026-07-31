@@ -16,6 +16,36 @@ export interface AerodromeRecord {
   kind: 'airport' | 'heliport';
 }
 
+// Directorio de contactos aeronáuticos: oficinas oficiales (ANAC/EANA/Prefectura),
+// teléfonos útiles de emergencia y aeroplantas YPF (combustible de aviación Jet A-1).
+export interface OfficialContact {
+  id: string;
+  name: string;
+  category: 'ais-aro' | 'notam' | 'meteorologia' | 'anac' | 'maritimo';
+  phone?: string;
+  phoneAlt?: string;
+  email?: string;
+  hours?: string;
+  notes?: string;
+  source: string;
+}
+
+export interface UsefulPhoneNumber {
+  id: string;
+  label: string;
+  phone: string;
+  category: 'emergencia-medica' | 'bomberos' | 'policia' | 'maritimo' | 'seguridad-fronteriza';
+  notes?: string;
+}
+
+export interface YpfAeroplanta {
+  icao: string;
+  iata: string;
+  name: string;
+  province: string;
+  phone: string;
+}
+
 export type MissionType = 
   | 'hems-neuquen-vista'
   | 'hems-rosario-utv'

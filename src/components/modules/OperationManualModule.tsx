@@ -4,7 +4,7 @@ import React from 'react';
 import {
   HelpCircle, ShieldAlert, Scale, Gauge, AlertOctagon, Flame, MapPin, Fuel, CloudSun, Moon,
   Compass, HeartPulse, CheckSquare, ShieldCheck, FileText, BookOpen, Book, FileCheck,
-  UserCircle, Home, Layers, Route
+  UserCircle, Home, Layers, Route, Phone
 } from 'lucide-react';
 
 interface ManualSection {
@@ -34,8 +34,9 @@ const GENERAL_SECTIONS: ManualSection[] = [
     icon: UserCircle,
     title: 'Roster de Tripulantes',
     body: [
-      'Lista de tripulantes de este dispositivo: nombre completo, rol (PIC / SIC / Médico / Despachante), licencia, vencimiento de licencia y de certificado médico, email y teléfono.',
-      'Importante: este roster se guarda solo en este dispositivo y navegador (localStorage), no en un servidor. No requiere contraseña ni conexión a internet.',
+      'Lista de tripulantes: nombre completo, rol (PIC / SIC / Médico / Despachante), licencia, vencimiento de licencia y de certificado médico, email y teléfono. Con el PIN operativo activo se sincroniza automáticamente con el roster compartido en la nube; sin PIN, funciona solo en este dispositivo (localStorage).',
+      'Cada celular/WhatsApp mostrado en la lista es un enlace directo: tocalo para marcar desde el dispositivo.',
+      'Cada alta o actualización de un tripulante envía automáticamente un email de confirmación a la dirección cargada en "Email de Contacto" (si se completó) y siempre a eforgan@gruppomodena.com — no requiere ninguna acción adicional, y una falla de envío nunca bloquea el guardado del registro.',
       'Elegí "Vuela Hoy" en el tripulante correspondiente para autocompletar su nombre en Despacho PDF, Plan de Vuelo OACI y Bitácora Digital según su rol. Si un tripulante tiene la licencia o el certificado médico vencido o por vencer en 30 días, aparece una alerta en la parte superior del módulo.',
     ],
   },
@@ -172,7 +173,8 @@ const DESPACHO_SECTIONS: ManualSection[] = [
     body: [
       'Formulario reglamentario FPL 1801 (ARO-AIS EANA): completá indicativo, reglas y tipo de vuelo, equipo, ruta, aeródromos y datos de búsqueda y salvamento.',
       'Si armaste una ruta en "Planificación de Navegación", el aeródromo de salida, destino, ruta (casilla 15), alternativas y tiempo estimado de vuelo (EET) se completan solos a partir de esa ruta.',
-      'Podés copiar la cadena ATS cruda, descargar el formulario en PDF, o enviarlo por correo electrónico directamente a la oficina ARO-AIS (o a cualquier destinatario que indiques).',
+      'Casilla 18 incluye siempre "OPERADOR: FLIGHT EXPRESS S.A." dentro de RMK/, junto con REG/ (matrícula real de la aeronave asignada) y STS/HOSP cuando la naturaleza del vuelo es Sanitaria.',
+      'Podés copiar la cadena ATS cruda, descargar el formulario en PDF, compartirlo por la app de correo del dispositivo ("Enviar por Email"), o enviarlo directo por el servidor de la EFB sin depender de una app de mail instalada ("Enviar por Email (directo, ARO-AIS)") — requiere el PIN operativo. Este último viene precompletado con el canal ARO-AIS/NOTAM de EANA S.E. (operaciones@eana.com.ar), ya que el depósito de planes de vuelo es un servicio centralizado a nivel nacional y no tiene oficina/email distinto por aeródromo de salida o destino; el destinatario es editable. Todo envío se copia automáticamente a eforgan@gruppomodena.com.',
     ],
   },
   {
@@ -199,6 +201,15 @@ const DESPACHO_SECTIONS: ManualSection[] = [
       'Los nombres de tripulación se completan solos según quién elegiste como "Vuela Hoy" en el Roster, según su rol; también podés escribirlos a mano.',
       'Incluye un panel de firma digital para la conformidad del PIC (dibujada con mouse o dedo), que se embebe en el PDF generado. Si no se firma, el PDF se genera igual con el recuadro en blanco.',
       'El contrato/misión que se imprime sigue automáticamente a la Misión seleccionada en el encabezado. El documento incluye el disclaimer de que los cálculos son aproximaciones no verificadas contra el RFM oficial.',
+    ],
+  },
+  {
+    icon: Phone,
+    title: 'Contactos & Combustible',
+    body: [
+      'Directorio de referencia con tres secciones: contactos oficiales ANAC/EANA/Prefectura Naval (ARO-AIS, NOTAM, información aeronáutica, SAR marítimo), estaciones meteorológicas del SMN (oficinas OMA/OIM por aeródromo) y las 44 aeroplantas YPF de combustible de aviación Jet A-1 a nivel nacional — las que coinciden con rutas Modena aparecen marcadas "RUTA MODENA".',
+      'Todo teléfono es un enlace directo para marcar desde el dispositivo (incluye internos del conmutador SMN cuando la oficina no tiene línea directa) y todo email es un enlace para abrir el cliente de correo. Un buscador único filtra las tres secciones a la vez por ICAO, nombre, ciudad, provincia o teléfono.',
+      'Los datos provienen de fuentes públicas (AIP Argentina vía ais.anac.gob.ar, argentina.gob.ar/prefecturanaval y listados públicos de aeroplantas YPF) — como toda la app, verificá contra el AIP/NOTAM vigente antes de una escala de reabastecimiento u operación real.',
     ],
   },
 ];

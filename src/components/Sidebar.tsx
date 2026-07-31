@@ -25,7 +25,8 @@ import {
   Home,
   HelpCircle,
   UserCircle,
-  Route
+  Route,
+  Phone
 } from 'lucide-react';
 
 export type TabType =
@@ -48,7 +49,8 @@ export type TabType =
   | 'dispatch'
   | 'manual'
   | 'profile'
-  | 'navplan';
+  | 'navplan'
+  | 'contacts';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -118,6 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'library', label: 'Biblioteca ANAC & RFM', icon: BookOpen },
         { id: 'logbook', label: 'Bitácora Digital', icon: Book },
         { id: 'dispatch', label: 'Despacho PDF Oficial', icon: FileCheck },
+        { id: 'contacts', label: 'Contactos & Combustible', icon: Phone },
         { id: 'manual', label: 'Manual de Operación', icon: HelpCircle },
       ],
     },
@@ -223,7 +226,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Sidebar Footer */}
         <div className="p-3 border-t border-slate-800 text-[10px] text-slate-500 font-mono text-center">
           {(!isCollapsedDesktop || isOpenMobile) ? (
-            <span>MODENA HEMS • REV 2026</span>
+            <>
+              <span className="block">MODENA HEMS • REV 2026</span>
+              <span className="block mt-0.5 text-slate-600">Desarrollo eforgan</span>
+            </>
           ) : (
             <span>EFB</span>
           )}
