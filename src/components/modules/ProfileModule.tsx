@@ -215,12 +215,8 @@ export const ProfileModule: React.FC = () => {
             <span className="text-[10px] text-slate-600 mt-1 block">Se envía confirmación de alta/actualización a esta dirección (si se completa) y siempre a eforgan@gruppomodena.com.</span>
           </div>
           <div>
-            <label className="text-slate-400 block mb-1">Teléfono</label>
+            <label className="text-slate-400 block mb-1">Teléfono / WhatsApp</label>
             <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+54 9 11 0000-0000" className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" />
-          </div>
-          <div>
-            <label className="text-slate-400 block mb-1">WhatsApp</label>
-            <input type="tel" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="+54 9 11 0000-0000" className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" />
           </div>
         </div>
 
