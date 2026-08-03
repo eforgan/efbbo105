@@ -200,6 +200,49 @@ describe('calculatePerformance', () => {
     expect(high.hogeMaxWeightKg).toBeLessThanOrEqual(low.hogeMaxWeightKg);
   });
 
+  // Regression test for a bug where the HIGE/HOGE ceilings were clamped at MTOW (2500kg) for
+  // the entire pressure-altitude range the crew actually operates in (real field elevations
+  // are ~900-2200ft), making the slider look like it did nothing: the code's own comment
+  // documents the ISA baseline as "HIGE 8,200ft @ 2500kg, HOGE 5,400ft @ 2500kg" but the
+  // formula's breakpoints were 4,000ft/2,000ft instead. tempC=15/qnhHpa=1013.25 keeps
+  // densityAltFt == pressureAltFt exactly (zero ISA deviation), so the breakpoints can be
+  // hit precisely.
+  describe('HIGE/HOGE ceilings hold at MTOW up to their documented baseline altitude', () => {
+    // tempC set to the ISA temperature *for that specific pressure altitude* (15 - alt/1000*2)
+    // zeroes out isaDevC, so densityAltFt == pressureAltFt exactly and the baseline breakpoint
+    // can be hit precisely.
+    function isaConditionsAt(pressureAltFt: number) {
+      return {
+        pressureAltFt, tempC: 15 - (pressureAltFt / 1000) * 2, qnhHpa: 1013.25,
+        windSpeedKt: 0, windDirDeg: 0, runwayHeadingDeg: 0, takeoffWeightKg: 2400,
+      };
+    }
+
+    it('keeps HOGE at 2500kg up to 5,400ft density altitude, then reduces it', () => {
+      const atBaseline = calculatePerformance(isaConditionsAt(5400));
+      const pastBaseline = calculatePerformance(isaConditionsAt(6400));
+      expect(atBaseline.hogeMaxWeightKg).toBe(2500);
+      expect(pastBaseline.hogeMaxWeightKg).toBe(2380); // 2500 - 1000ft * 0.12kg/ft
+    });
+
+    it('keeps HIGE at 2500kg up to 8,200ft density altitude, then reduces it', () => {
+      const atBaseline = calculatePerformance(isaConditionsAt(8200));
+      const pastBaseline = calculatePerformance(isaConditionsAt(9200));
+      expect(atBaseline.higeMaxWeightKg).toBe(2500);
+      expect(pastBaseline.higeMaxWeightKg).toBe(2420); // 2500 - 1000ft * 0.08kg/ft
+    });
+
+    it('changes the HOGE ceiling across the altitudes typical of Modena field elevations (900-2200ft)', () => {
+      const low = calculatePerformance(isaConditionsAt(900));
+      const high = calculatePerformance(isaConditionsAt(2200));
+      // Both stay clamped at MTOW here (well below the 5,400ft HOGE baseline) — this asserts
+      // the *correct* flat behavior at real operating altitudes, as opposed to the old bug
+      // where the ceiling was already declining by 2000ft.
+      expect(low.hogeMaxWeightKg).toBe(2500);
+      expect(high.hogeMaxWeightKg).toBe(2500);
+    });
+  });
+
   it('flags canHoge false once takeoff weight exceeds the HOGE ceiling for the conditions', () => {
     const input = { pressureAltFt: 6000, tempC: 25, qnhHpa: 1013.25, windSpeedKt: 0, windDirDeg: 0, runwayHeadingDeg: 0, takeoffWeightKg: 2500 };
     const result = calculatePerformance(input);

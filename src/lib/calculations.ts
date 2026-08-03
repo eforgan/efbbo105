@@ -72,9 +72,10 @@ export function calculatePerformance(input: PerformanceInput): PerformanceResult
   const isaDevC = input.tempC - isaTemp;
   const densityAltFt = input.pressureAltFt + 120 * isaDevC + (1013.25 - input.qnhHpa) * 30;
 
-  // BO105 CBS-4 Hover Ceilings (ISA baseline: HIGE 8,200ft @ 2500kg, HOGE 5,400ft @ 2500kg)
-  const higeMaxWeightKg = Math.max(1800, Math.min(2500, 2500 - (densityAltFt - 4000) * 0.08));
-  const hogeMaxWeightKg = Math.max(1700, Math.min(2500, 2500 - (densityAltFt - 2000) * 0.12));
+  // BO105 CBS-4 Hover Ceilings (ISA baseline: HIGE 8,200ft @ 2500kg, HOGE 5,400ft @ 2500kg) —
+  // the max weight stays at MTOW up to that baseline density altitude, then falls off past it.
+  const higeMaxWeightKg = Math.max(1800, Math.min(2500, 2500 - (densityAltFt - 8200) * 0.08));
+  const hogeMaxWeightKg = Math.max(1700, Math.min(2500, 2500 - (densityAltFt - 5400) * 0.12));
   const canHoge = input.takeoffWeightKg <= hogeMaxWeightKg;
 
   // Single engine climb rate (OEI) ~ 450 fpm at sea level ISA, drops with altitude & weight
