@@ -480,6 +480,12 @@ export const NavigationPlanningModule: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="text-slate-400 block mb-1">Latitud (GMS)</label>
+                <div className="flex gap-1 mb-1 text-[9px] text-slate-500 uppercase tracking-wide">
+                  <span className="w-1/4 text-center">Grados</span>
+                  <span className="w-1/4 text-center">Minutos</span>
+                  <span className="w-1/4 text-center">Segundos</span>
+                  <span className="w-1/4 text-center">Hemisf.</span>
+                </div>
                 <div className="flex gap-1">
                   <input type="number" value={manualLatDms.deg} onChange={(e) => setManualLatDms({ ...manualLatDms, deg: Number(e.target.value) })} placeholder="°" className="w-1/4 bg-slate-900 border border-slate-700 rounded px-1.5 py-1.5 text-slate-200" />
                   <input type="number" value={manualLatDms.min} onChange={(e) => setManualLatDms({ ...manualLatDms, min: Number(e.target.value) })} placeholder="'" className="w-1/4 bg-slate-900 border border-slate-700 rounded px-1.5 py-1.5 text-slate-200" />
@@ -492,6 +498,12 @@ export const NavigationPlanningModule: React.FC = () => {
               </div>
               <div>
                 <label className="text-slate-400 block mb-1">Longitud (GMS)</label>
+                <div className="flex gap-1 mb-1 text-[9px] text-slate-500 uppercase tracking-wide">
+                  <span className="w-1/4 text-center">Grados</span>
+                  <span className="w-1/4 text-center">Minutos</span>
+                  <span className="w-1/4 text-center">Segundos</span>
+                  <span className="w-1/4 text-center">Hemisf.</span>
+                </div>
                 <div className="flex gap-1">
                   <input type="number" value={manualLonDms.deg} onChange={(e) => setManualLonDms({ ...manualLonDms, deg: Number(e.target.value) })} placeholder="°" className="w-1/4 bg-slate-900 border border-slate-700 rounded px-1.5 py-1.5 text-slate-200" />
                   <input type="number" value={manualLonDms.min} onChange={(e) => setManualLonDms({ ...manualLonDms, min: Number(e.target.value) })} placeholder="'" className="w-1/4 bg-slate-900 border border-slate-700 rounded px-1.5 py-1.5 text-slate-200" />
