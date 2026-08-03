@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../lib/db';
 import { checkCrewPin } from '../../../lib/apiAuth';
+import { ID_RE, ISO_RE, handleDeleteByGeneratedId } from '../../../lib/apiCrud';
 import { RiskLogEntry, MissionType } from '../../../types/efb';
 
 const MISSION_TYPES: MissionType[] = [
   'hems-neuquen-vista', 'hems-rosario-utv', 'hems-same-ba', 'hems-ypf-vmos', 'hems-onshore', 'hems-offshore', 'training',
 ];
 const VERDICTS = ['GO', 'PRECAUCION', 'NO-GO'] as const;
-const ID_RE = /^[a-zA-Z0-9_-]{1,80}$/;
-const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 const MAX_TEXT_LEN = 300;
 const MAX_LIST_ITEMS = 50;
 
@@ -119,14 +118,5 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = checkCrewPin(request);
-  if ('error' in auth) return auth.error;
-
-  const id = request.nextUrl.searchParams.get('id');
-  if (!id || !ID_RE.test(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
-
-  const sql = getSql();
-  const rows = (await sql`DELETE FROM risk_log_entries WHERE id = ${id} RETURNING id`) as { id: string }[];
-  if (rows.length === 0) return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 });
-  return NextResponse.json({ ok: true });
+  return handleDeleteByGeneratedId(request, 'risk_log_entries');
 }

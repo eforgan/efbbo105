@@ -81,5 +81,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `No se pudo enviar el email: ${(err as Error).message}` }, { status: 502 });
   }
 
+  // The shared crew PIN doesn't identify who sent it — this line is the only trail if the
+  // PIN ever leaks and this endpoint gets used to relay mail to an unexpected recipient.
+  console.log(`[send-flight-plan] ${new Date().toISOString()} ${v.callsign} ${v.depIcao}->${v.destIcao} -> ${v.to}`);
+
   return NextResponse.json({ ok: true });
 }

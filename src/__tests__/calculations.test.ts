@@ -66,6 +66,63 @@ describe('calculateWB', () => {
   });
 });
 
+describe('calculateWB forward CG limit envelope', () => {
+  // calculateWB's fwdLimit steps mirror CG_ENVELOPE_POINTS (1400/2000kg->3080, 2400kg->3120,
+  // 2500kg->3180) but aren't derived from it — these tests pin the breakpoints so a future
+  // edit to one doesn't silently drift from the other reference table in bo105-specs.ts.
+  // A single non-fuel payload station of weight (targetWeightKg - BEW) is placed at the arm
+  // that makes the weighted average (BEW, bewArmMm) + (payloadWeight, armMm) land exactly on
+  // targetCgMm, isolating the envelope check from BEW/fuel-station bookkeeping.
+  function stationsForWeightAndCg(targetWeightKg: number, targetCgMm: number): WBStation[] {
+    const payloadWeightKg = targetWeightKg - BO105_SPECS.bewKg;
+    const armMm = (targetCgMm * targetWeightKg - BO105_SPECS.bewKg * BO105_SPECS.bewArmMm) / payloadWeightKg;
+    return [{ id: 'baggage', name: 'Payload', armMm, weightKg: payloadWeightKg, description: '' }];
+  }
+
+  it.each([
+    [2000, 3080],
+    [2400, 3120],
+    [2500, 3180],
+  ])('accepts CG exactly at the forward limit for %ikg (%imm)', (weightKg, limitMm) => {
+    const summary = calculateWB(stationsForWeightAndCg(weightKg, limitMm));
+    expect(summary.totalWeightKg).toBeCloseTo(weightKg, 5);
+    expect(summary.cgLocationMm).toBeCloseTo(limitMm, 5);
+    expect(summary.isCgValid).toBe(true);
+  });
+
+  it.each([
+    [2000, 3080],
+    [2400, 3120],
+    [2500, 3180],
+  ])('rejects CG 1mm forward of the limit for %ikg (%imm)', (weightKg, limitMm) => {
+    const summary = calculateWB(stationsForWeightAndCg(weightKg, limitMm - 1));
+    expect(summary.isCgValid).toBe(false);
+  });
+
+  it('interpolates the forward limit linearly between 2000kg and 2400kg', () => {
+    const midWeightKg = 2200; // halfway -> fwdLimit should be halfway between 3080 and 3120
+    const expectedLimitMm = 3100;
+    const atLimit = calculateWB(stationsForWeightAndCg(midWeightKg, expectedLimitMm));
+    const belowLimit = calculateWB(stationsForWeightAndCg(midWeightKg, expectedLimitMm - 1));
+    expect(atLimit.isCgValid).toBe(true);
+    expect(belowLimit.isCgValid).toBe(false);
+  });
+
+  it('interpolates the forward limit linearly between 2400kg and 2500kg', () => {
+    const midWeightKg = 2450; // halfway -> fwdLimit should be halfway between 3120 and 3180
+    const expectedLimitMm = 3150;
+    const atLimit = calculateWB(stationsForWeightAndCg(midWeightKg, expectedLimitMm));
+    const belowLimit = calculateWB(stationsForWeightAndCg(midWeightKg, expectedLimitMm - 1));
+    expect(atLimit.isCgValid).toBe(true);
+    expect(belowLimit.isCgValid).toBe(false);
+  });
+
+  it('rejects CG aft of the fixed 3420mm aft limit regardless of weight', () => {
+    const summary = calculateWB(stationsForWeightAndCg(2000, 3421));
+    expect(summary.isCgValid).toBe(false);
+  });
+});
+
 describe('calculatePerformance', () => {
   it('reports zero ISA deviation at 15°C sea level pressure altitude', () => {
     const result = calculatePerformance({
@@ -141,6 +198,47 @@ describe('calculatePerformance', () => {
       pressureAltFt: 6000, tempC: 15, qnhHpa: 1013.25, windSpeedKt: 0, windDirDeg: 0, runwayHeadingDeg: 0, takeoffWeightKg: 2400,
     });
     expect(high.hogeMaxWeightKg).toBeLessThanOrEqual(low.hogeMaxWeightKg);
+  });
+
+  it('flags canHoge false once takeoff weight exceeds the HOGE ceiling for the conditions', () => {
+    const input = { pressureAltFt: 6000, tempC: 25, qnhHpa: 1013.25, windSpeedKt: 0, windDirDeg: 0, runwayHeadingDeg: 0, takeoffWeightKg: 2500 };
+    const result = calculatePerformance(input);
+    expect(result.canHoge).toBe(input.takeoffWeightKg <= result.hogeMaxWeightKg);
+    expect(result.canHoge).toBe(false);
+  });
+
+  it('clamps hogeMaxWeightKg and higeMaxWeightKg within the type-certified weight band', () => {
+    const veryHigh = calculatePerformance({
+      pressureAltFt: 15000, tempC: 30, qnhHpa: 1013.25, windSpeedKt: 0, windDirDeg: 0, runwayHeadingDeg: 0, takeoffWeightKg: 2000,
+    });
+    expect(veryHigh.hogeMaxWeightKg).toBeGreaterThanOrEqual(1700);
+    expect(veryHigh.higeMaxWeightKg).toBeGreaterThanOrEqual(1800);
+    const seaLevelCold = calculatePerformance({
+      pressureAltFt: 0, tempC: -20, qnhHpa: 1030, windSpeedKt: 0, windDirDeg: 0, runwayHeadingDeg: 0, takeoffWeightKg: 2000,
+    });
+    expect(seaLevelCold.hogeMaxWeightKg).toBeLessThanOrEqual(BO105_SPECS.mtowKg);
+    expect(seaLevelCold.higeMaxWeightKg).toBeLessThanOrEqual(BO105_SPECS.mtowKg);
+  });
+});
+
+describe('calculatePerformance OEI (single-engine) climb rate', () => {
+  const base = { pressureAltFt: 0, tempC: 15, qnhHpa: 1013.25, windSpeedKt: 0, windDirDeg: 0, runwayHeadingDeg: 0 };
+
+  it('drops the OEI climb rate as density altitude increases at a fixed weight', () => {
+    const low = calculatePerformance({ ...base, pressureAltFt: 0, takeoffWeightKg: 2400 });
+    const high = calculatePerformance({ ...base, pressureAltFt: 8000, takeoffWeightKg: 2400 });
+    expect(high.oeiClimbRateFpm).toBeLessThan(low.oeiClimbRateFpm);
+  });
+
+  it('improves the OEI climb rate at a lighter takeoff weight, altitude held fixed', () => {
+    const heavy = calculatePerformance({ ...base, pressureAltFt: 4000, takeoffWeightKg: 2500 });
+    const light = calculatePerformance({ ...base, pressureAltFt: 4000, takeoffWeightKg: 1800 });
+    expect(light.oeiClimbRateFpm).toBeGreaterThan(heavy.oeiClimbRateFpm);
+  });
+
+  it('never reports a negative OEI climb rate in an extreme hot-and-high case', () => {
+    const extreme = calculatePerformance({ ...base, pressureAltFt: 12000, tempC: 40, takeoffWeightKg: 2500 });
+    expect(extreme.oeiClimbRateFpm).toBeGreaterThanOrEqual(0);
   });
 });
 

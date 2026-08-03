@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../lib/db';
 import { checkCrewPin } from '../../../lib/apiAuth';
+import { ID_RE, DATE_RE, handleDeleteByGeneratedId } from '../../../lib/apiCrud';
 import { sendMail, isMailerConfigured } from '../../../lib/mailer';
 import { CrewProfile, CrewRole, PilotLicenseType } from '../../../types/efb';
 
 const ROLES: CrewRole[] = ['PIC', 'SIC', 'medico', 'despachante'];
 const LICENSE_TYPES: PilotLicenseType[] = ['PCH', 'PLH', 'PPH', 'INST', 'OTRO'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const ID_RE = /^[a-zA-Z0-9_-]{1,80}$/;
 const MAX_TEXT_LEN = 120;
 
 interface DbRow {
@@ -187,14 +186,5 @@ async function sendCrewConfirmationEmail(profile: CrewProfile, isNew: boolean): 
 
 // DELETE: remove a roster entry by id (?id=...).
 export async function DELETE(request: NextRequest) {
-  const auth = checkCrewPin(request);
-  if ('error' in auth) return auth.error;
-
-  const id = request.nextUrl.searchParams.get('id');
-  if (!id || !ID_RE.test(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
-
-  const sql = getSql();
-  const rows = (await sql`DELETE FROM crew_profiles WHERE id = ${id} RETURNING id`) as { id: string }[];
-  if (rows.length === 0) return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 });
-  return NextResponse.json({ ok: true });
+  return handleDeleteByGeneratedId(request, 'crew_profiles');
 }
