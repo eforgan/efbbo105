@@ -108,6 +108,99 @@ export function calculatePerformance(input: PerformanceInput): PerformanceResult
   };
 }
 
+export interface PowerCurvePoint {
+  speedKt: number;
+  inducedPowerKw: number;
+  parasitePowerKw: number;
+  totalPowerKw: number;
+}
+
+export interface PowerCurveResult {
+  points: PowerCurvePoint[];
+  minPowerSpeedKt: number; // "velocidad de mínima resistencia" — bottom of the curve, best endurance
+  minPowerKw: number;
+  bestRangeSpeedKt: number; // tangent from the origin (min power/speed ratio) — best range, always > minPowerSpeedKt
+  bestRangePowerKw: number;
+  availablePowerKw: number;
+}
+
+const ROTOR_DISK_AREA_M2 = Math.PI * (BO105_SPECS.rotorDiameterM / 2) ** 2;
+// Equivalent flat-plate parasite drag area for an airframe this size — an assumed
+// representative value for this training model, not measured against the RFM.
+const FLAT_PLATE_AREA_M2 = 1.5;
+const SEA_LEVEL_DENSITY_KGM3 = 1.225;
+const GRAVITY_MS2 = 9.81;
+const KT_TO_MS = 0.514444;
+
+function round1(x: number): number {
+  return Math.round(x * 10) / 10;
+}
+
+// Converts density altitude (same quantity calculatePerformance derives for HIGE/HOGE/VNE)
+// into an actual air density via the standard density-ratio (sigma) relation, so this curve
+// stays consistent with the rest of the module's atmospheric model instead of introducing a
+// second one.
+function airDensityKgM3(densityAltFt: number): number {
+  const sigma = Math.max(0.05, (1 - densityAltFt * 6.87535e-6) ** 4.2561);
+  return SEA_LEVEL_DENSITY_KGM3 * sigma;
+}
+
+// Power-required curve (induced + parasite power vs. airspeed), the classic diagram used to
+// read off two reference speeds: minimum power required ("mínima resistencia" / best
+// endurance, the bottom of the curve) and best range (the speed that minimizes power/speed —
+// equivalently, where a line from the origin is tangent to the curve). Profile, tail-rotor,
+// and accessory power aren't modeled, so totalPowerKw understates real shaft power required;
+// the plotted range starts above ~20kt because the induced-power approximation used here
+// (P_i ≈ P_hover · v_ih/V) only holds once forward speed is well above the hover induced
+// velocity — it isn't a hover power model.
+export function calculatePowerCurve(
+  input: Pick<PerformanceInput, 'pressureAltFt' | 'tempC' | 'qnhHpa' | 'takeoffWeightKg'>,
+  minSpeedKt: number = 20,
+  maxSpeedKt: number = 130
+): PowerCurveResult {
+  const isaTemp = 15 - (input.pressureAltFt / 1000) * 2;
+  const isaDevC = input.tempC - isaTemp;
+  const densityAltFt = input.pressureAltFt + 120 * isaDevC + (1013.25 - input.qnhHpa) * 30;
+  const rho = airDensityKgM3(densityAltFt);
+
+  const weightN = input.takeoffWeightKg * GRAVITY_MS2;
+  const hoverInducedVelocityMs = Math.sqrt(weightN / (2 * rho * ROTOR_DISK_AREA_M2));
+  const hoverInducedPowerW = weightN * hoverInducedVelocityMs;
+
+  const points: PowerCurvePoint[] = [];
+  let minPowerKw = Infinity;
+  let minPowerSpeedKt = minSpeedKt;
+  let bestRatio = Infinity;
+  let bestRangeSpeedKt = minSpeedKt;
+  let bestRangePowerKw = 0;
+
+  for (let speedKt = minSpeedKt; speedKt <= maxSpeedKt; speedKt += 1) {
+    const speedMs = speedKt * KT_TO_MS;
+    const inducedPowerKw = round1((hoverInducedPowerW * (hoverInducedVelocityMs / speedMs)) / 1000);
+    const parasitePowerKw = round1((0.5 * rho * speedMs ** 3 * FLAT_PLATE_AREA_M2) / 1000);
+    const totalPowerKw = round1(inducedPowerKw + parasitePowerKw);
+
+    points.push({ speedKt, inducedPowerKw, parasitePowerKw, totalPowerKw });
+
+    if (totalPowerKw < minPowerKw) {
+      minPowerKw = totalPowerKw;
+      minPowerSpeedKt = speedKt;
+    }
+    const ratio = totalPowerKw / speedKt; // minimizing power/speed maximizes specific range
+    if (ratio < bestRatio) {
+      bestRatio = ratio;
+      bestRangeSpeedKt = speedKt;
+      bestRangePowerKw = totalPowerKw;
+    }
+  }
+
+  // Two Rolls-Royce (Allison) 250-C20B, 420 SHP each, converted to kW — installed power, no
+  // transmission/accessory loss subtracted (not modeled).
+  const availablePowerKw = round1(2 * 420 * 0.7457);
+
+  return { points, minPowerSpeedKt, minPowerKw, bestRangeSpeedKt, bestRangePowerKw, availablePowerKw };
+}
+
 export function calculateDistanceNm(w1: LatLon, w2: LatLon): number {
   const R = 3440.065; // Earth radius in NM
   const dLat = ((w2.lat - w1.lat) * Math.PI) / 180;

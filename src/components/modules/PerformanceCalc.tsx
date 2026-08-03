@@ -2,10 +2,12 @@
 
 import React from 'react';
 import { PerformanceResult } from '../../types/efb';
-import { calculatePerformance } from '../../lib/calculations';
+import { calculatePerformance, calculatePowerCurve } from '../../lib/calculations';
 import { useEfbData } from '../../context/EfbDataContext';
-import { Gauge, Thermometer, Wind, Mountain, AlertOctagon, CheckCircle2, BarChart3 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
+import { Gauge, Thermometer, Wind, Mountain, AlertOctagon, CheckCircle2, BarChart3, LineChart as LineChartIcon } from 'lucide-react';
+import {
+  ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
+} from 'recharts';
 
 export const PerformanceCalcModule: React.FC = () => {
   const { performanceInput: input, setPerformanceInput: setInput } = useEfbData();
@@ -25,6 +27,16 @@ export const PerformanceCalcModule: React.FC = () => {
       };
     });
   }, [input]);
+
+  const powerCurve = React.useMemo(() => calculatePowerCurve(input), [input]);
+
+  // The available-power reference line (~626kW) sits well above the induced+parasite curve
+  // (no profile/tail-rotor power modeled) — without an explicit domain, Recharts auto-scales
+  // to the curve's own max and the line falls outside the visible chart entirely.
+  const powerChartMaxKw = React.useMemo(() => {
+    const curveMax = Math.max(...powerCurve.points.map(p => p.totalPowerKw));
+    return Math.ceil((Math.max(curveMax, powerCurve.availablePowerKw) * 1.1) / 50) * 50;
+  }, [powerCurve]);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto font-sans">
@@ -203,6 +215,62 @@ export const PerformanceCalcModule: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          {/* Power-Required Curve (Induced + Parasite Drag) */}
+          <div className="glass-card p-5 rounded-xl border border-slate-800 font-mono space-y-3">
+            <h4 className="text-xs font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center gap-2">
+              <LineChartIcon className="w-4 h-4 text-cyan-400" /> Curva de Potencia Requerida (Resistencia Parásita e Inducida)
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="glass-card p-3 rounded-lg border border-cyan-500/30 bg-cyan-950/10">
+                <p className="text-[10px] text-slate-400 uppercase">Velocidad de Mínima Resistencia (Mín. Potencia)</p>
+                <p className="text-xl font-bold text-cyan-400">{powerCurve.minPowerSpeedKt} <span className="text-xs">kt</span></p>
+                <p className="text-[10px] text-slate-400 mt-1">{powerCurve.minPowerKw.toFixed(1)} kW requeridos — máxima autonomía</p>
+              </div>
+              <div className="glass-card p-3 rounded-lg border border-emerald-500/30 bg-emerald-950/10">
+                <p className="text-[10px] text-slate-400 uppercase">Velocidad de Máximo Alcance</p>
+                <p className="text-xl font-bold text-emerald-400">{powerCurve.bestRangeSpeedKt} <span className="text-xs">kt</span></p>
+                <p className="text-[10px] text-slate-400 mt-1">{powerCurve.bestRangePowerKw.toFixed(1)} kW requeridos — tangente desde el origen</p>
+              </div>
+            </div>
+
+            <div className="h-72 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={powerCurve.points} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis
+                    dataKey="speedKt"
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    label={{ value: 'Velocidad (kt)', position: 'insideBottom', offset: -5, fill: '#64748b', fontSize: 10 }}
+                  />
+                  <YAxis
+                    domain={[0, powerChartMaxKw]}
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    label={{ value: 'Potencia Requerida (kW)', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 10 }}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#cbd5e1' }} />
+                  <ReferenceLine
+                    y={powerCurve.availablePowerKw}
+                    stroke="#f59e0b"
+                    strokeDasharray="5 5"
+                    label={{ value: `Pot. Disponible: ${powerCurve.availablePowerKw.toFixed(0)} kW`, fill: '#f59e0b', fontSize: 10, position: 'insideTopRight' }}
+                  />
+                  <ReferenceLine x={powerCurve.minPowerSpeedKt} stroke="#22d3ee" strokeDasharray="3 3" label={{ value: 'Mín. Resist.', fill: '#22d3ee', fontSize: 9, position: 'top' }} />
+                  <ReferenceLine x={powerCurve.bestRangeSpeedKt} stroke="#10b981" strokeDasharray="3 3" label={{ value: 'Máx. Alcance', fill: '#10b981', fontSize: 9, position: 'top' }} />
+                  <Line type="monotone" dataKey="inducedPowerKw" name="Potencia Inducida (kW)" stroke="#a78bfa" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="parasitePowerKw" name="Potencia Parásita (kW)" stroke="#f472b6" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="totalPowerKw" name="Potencia Total Requerida (kW)" stroke="#06b6d4" strokeWidth={2.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-[10px] text-slate-500 border-t border-slate-800 pt-2">
+              Modelo simplificado (potencia inducida + parásita únicamente; no incluye potencia de perfil, cola ni accesorios) — usa la Altitud de Presión, Temperatura y Peso configurados arriba. Aproximación de entrenamiento, no verificada contra el RFM.
+            </p>
           </div>
 
           {/* Interactive Performance Table */}

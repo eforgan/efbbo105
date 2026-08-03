@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateWB,
   calculatePerformance,
+  calculatePowerCurve,
   calculateDistanceNm,
   calculateHeadingDeg,
   buildRouteLegs,
@@ -341,5 +342,61 @@ describe('calculateOxygen', () => {
     const calc = calculateOxygen(10, 180, 0);
     expect(calc.durationMinutes).toBe(0);
     expect(calc.usableDurationMinutes).toBe(0);
+  });
+});
+
+describe('calculatePowerCurve', () => {
+  const baseInput = { pressureAltFt: 0, tempC: 15, qnhHpa: 1013.25, takeoffWeightKg: 2400 };
+
+  it('produces one point per knot across the requested speed range', () => {
+    const curve = calculatePowerCurve(baseInput, 20, 130);
+    expect(curve.points.length).toBe(130 - 20 + 1);
+    expect(curve.points[0].speedKt).toBe(20);
+    expect(curve.points[curve.points.length - 1].speedKt).toBe(130);
+  });
+
+  it('shapes a U-curve: total power is higher at both ends of the range than at the minimum', () => {
+    const curve = calculatePowerCurve(baseInput, 20, 130);
+    const first = curve.points[0];
+    const last = curve.points[curve.points.length - 1];
+    expect(curve.minPowerKw).toBeLessThan(first.totalPowerKw);
+    expect(curve.minPowerKw).toBeLessThan(last.totalPowerKw);
+  });
+
+  it('reports minPowerKw as the actual minimum among all plotted points', () => {
+    const curve = calculatePowerCurve(baseInput, 20, 130);
+    const trueMin = Math.min(...curve.points.map(p => p.totalPowerKw));
+    expect(curve.minPowerKw).toBe(trueMin);
+    const matched = curve.points.find(p => p.speedKt === curve.minPowerSpeedKt);
+    expect(matched?.totalPowerKw).toBe(curve.minPowerKw);
+  });
+
+  it('places the best-range speed above the minimum-power speed (best range > best endurance)', () => {
+    const curve = calculatePowerCurve(baseInput, 20, 130);
+    expect(curve.bestRangeSpeedKt).toBeGreaterThan(curve.minPowerSpeedKt);
+  });
+
+  it('picks the best-range speed as the one minimizing power/speed among all points', () => {
+    const curve = calculatePowerCurve(baseInput, 20, 130);
+    const trueBestRatio = Math.min(...curve.points.map(p => p.totalPowerKw / p.speedKt));
+    const reportedRatio = curve.bestRangePowerKw / curve.bestRangeSpeedKt;
+    expect(reportedRatio).toBeCloseTo(trueBestRatio, 1);
+  });
+
+  it('requires more induced power at a heavier takeoff weight, speed held fixed', () => {
+    const light = calculatePowerCurve({ ...baseInput, takeoffWeightKg: 1800 }, 40, 40);
+    const heavy = calculatePowerCurve({ ...baseInput, takeoffWeightKg: 2500 }, 40, 40);
+    expect(heavy.points[0].inducedPowerKw).toBeGreaterThan(light.points[0].inducedPowerKw);
+  });
+
+  it('requires more parasite power in denser air (sea level) than thinner air (high density altitude), speed held fixed', () => {
+    const denseAir = calculatePowerCurve({ ...baseInput, pressureAltFt: 0 }, 100, 100);
+    const thinAir = calculatePowerCurve({ ...baseInput, pressureAltFt: 10000, tempC: -5 }, 100, 100);
+    expect(denseAir.points[0].parasitePowerKw).toBeGreaterThan(thinAir.points[0].parasitePowerKw);
+  });
+
+  it('reports a fixed available power derived from the two installed 420 SHP engines', () => {
+    const curve = calculatePowerCurve(baseInput, 20, 20);
+    expect(curve.availablePowerKw).toBeCloseTo(2 * 420 * 0.7457, 1);
   });
 });
