@@ -42,6 +42,18 @@ const withPWA = withPWAInit({
           expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 6 },
         },
       },
+      {
+        // Geographic route map tiles (CartoDB) — caching previously-viewed tiles means a
+        // route already checked once still shows its map with no connectivity, even though
+        // never-visited areas still need a live connection to load.
+        urlPattern: /^https:\/\/[abcd]\.basemaps\.cartocdn\.com\/.*/i,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "map-tiles",
+          expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
     ],
   },
 });

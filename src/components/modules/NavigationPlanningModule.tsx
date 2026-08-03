@@ -13,6 +13,7 @@ import { BO105_SPECS, OACI_RISK_FACTORS, getFleetAircraft } from '../../lib/bo10
 import { useEfbData } from '../../context/EfbDataContext';
 import { SyncBadge } from '../SyncBadge';
 import { RouteMap } from '../nav/RouteMap';
+import { GeoRouteMap } from '../nav/GeoRouteMap';
 import type { TafSummary } from '../../app/api/weather/route';
 
 const OXYGEN_RESERVE_MIN = 30;
@@ -603,6 +604,7 @@ export const NavigationPlanningModule: React.FC = () => {
       )}
 
       <RouteMap routePoints={routePoints} alternatePoints={alternatePoints} />
+      <GeoRouteMap routePoints={routePoints} alternatePoints={alternatePoints} />
 
       {/* Legs table */}
       {legs.length > 0 && (
