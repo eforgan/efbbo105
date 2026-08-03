@@ -95,6 +95,10 @@ export interface WBSummary {
   cgLocationMm: number;
   isWeightValid: boolean;
   isCgValid: boolean;
+  // Forward/aft CG limits applicable at totalWeightKg (the envelope is weight-dependent, not
+  // a fixed range) — see FWD_CG_ENVELOPE_POINTS / AFT_CG_ENVELOPE_POINTS in bo105-specs.ts.
+  fwdLimitMm: number;
+  aftLimitMm: number;
   lateralCgMm: number;
   isLateralValid: boolean;
   zeroFuelWeightKg: number;

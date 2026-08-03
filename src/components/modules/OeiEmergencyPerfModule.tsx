@@ -5,17 +5,25 @@ import { Flame, ShieldAlert, AlertTriangle, ArrowUpRight, Gauge, Activity, BarCh
 import { BO105_SPECS } from '../../lib/bo105-specs';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, LineChart, Line } from 'recharts';
 
-// Both figures below come from the same climb-rate model (climb rate decreasing 80fpm per
+// Both figures below come from the same climb-rate model (climb rate decreasing ~53fpm per
 // 1,000ft) so the ceiling is always exactly the altitude where that model's climb rate
 // crosses zero — computing them as two independent formulas could show a "ceiling" you're
 // supposedly still under while the climb rate at that same altitude was already negative,
 // which is a contradiction, not two views of the same thing.
+//
+// Coefficients recalibrated against a real RFM Fig. 5-13 worked example — PA 8,500ft/OAT
+// 0°C/GM 1,750kg (EPWR, emergency power) gives ROC ≈ 200fpm; the pre-recalibration
+// coefficients (110/80/12) gave ~125fpm there. The baseline (350fpm) is unchanged and all
+// three sensitivity coefficients are scaled by the same factor, matching the same anchor
+// point and methodology used for calculatePerformance's independent OEI model in
+// lib/calculations.ts (kept as a separate formula here since this module also needs negative
+// climb rates to model a drift-down descent, which that shared function clamps to zero).
 function oeiClimbRateAt(weightKg: number, pressAltFt: number, oat: number): number {
-  return 350 - ((weightKg - 2000) / 100) * 110 - (pressAltFt / 1000) * 80 - (oat - 15) * 12;
+  return 350 - ((weightKg - 2000) / 100) * 73.3 - (pressAltFt / 1000) * 53.3 - (oat - 15) * 8;
 }
 function oeiCeilingFor(weightKg: number, oat: number): number {
   const seaLevelClimbFpm = oeiClimbRateAt(weightKg, 0, oat);
-  return Math.max(0, Math.round(seaLevelClimbFpm * 12.5)); // fpm -> ft (climb rate falls 80fpm/1000ft)
+  return Math.max(0, Math.round(seaLevelClimbFpm * (1000 / 53.3))); // fpm -> ft at 53.3fpm/1000ft
 }
 
 export const OeiEmergencyPerfModule: React.FC = () => {

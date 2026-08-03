@@ -1,5 +1,23 @@
 import { WBStation, WBSummary, PerformanceInput, PerformanceResult, Waypoint, RouteLeg, OxygenCalculation, LatLon } from '../types/efb';
-import { BO105_SPECS } from './bo105-specs';
+import { BO105_SPECS, FWD_CG_ENVELOPE_POINTS, AFT_CG_ENVELOPE_POINTS } from './bo105-specs';
+
+// Piecewise-linear interpolation over a CG envelope curve's vertices (FWD_CG_ENVELOPE_POINTS /
+// AFT_CG_ENVELOPE_POINTS in bo105-specs.ts), clamped to the first/last vertex outside the
+// defined weight range.
+function interpolateCgLimit(weightKg: number, points: { weightKg: number; armMm: number }[]): number {
+  if (weightKg <= points[0].weightKg) return points[0].armMm;
+  const last = points[points.length - 1];
+  if (weightKg >= last.weightKg) return last.armMm;
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    if (weightKg >= a.weightKg && weightKg <= b.weightKg) {
+      const t = (weightKg - a.weightKg) / (b.weightKg - a.weightKg);
+      return a.armMm + (b.armMm - a.armMm) * t;
+    }
+  }
+  return last.armMm;
+}
 
 // bewKg/bewArmMm default to the generic type spec, but callers with a real assigned tail
 // (see getFleetAircraft in bo105-specs.ts) should pass that airframe's actual BEW — empty
@@ -30,21 +48,11 @@ export function calculateWB(stations: WBStation[], bewKg: number = BO105_SPECS.b
   const totalMomentKgM = zeroFuelMomentKgM + fuelMoment;
   const cgLocationMm = totalWeightKg > 0 ? (totalMomentKgM * 1000) / totalWeightKg : 0;
 
-  // Envelope checks
+  // Envelope checks — forward/aft CG limits from the real CBS-4/CDN-BS-4 envelope (RFM Fig.
+  // 6-2), each interpolated independently since they don't share weight breakpoints.
   const isWeightValid = totalWeightKg <= BO105_SPECS.mtowKg;
-  
-  // Interpolate forward CG limit for current total weight
-  let fwdLimit = 3080;
-  if (totalWeightKg > 2000) {
-    if (totalWeightKg >= 2500) {
-      fwdLimit = 3180;
-    } else if (totalWeightKg >= 2400) {
-      fwdLimit = 3120 + ((totalWeightKg - 2400) / 100) * 60;
-    } else {
-      fwdLimit = 3080 + ((totalWeightKg - 2000) / 400) * 40;
-    }
-  }
-  const aftLimit = 3420;
+  const fwdLimit = interpolateCgLimit(totalWeightKg, FWD_CG_ENVELOPE_POINTS);
+  const aftLimit = interpolateCgLimit(totalWeightKg, AFT_CG_ENVELOPE_POINTS);
   const isCgValid = cgLocationMm >= fwdLimit && cgLocationMm <= aftLimit;
 
   // Lateral CG estimate (stretcher is offset ~150mm right)
@@ -60,6 +68,8 @@ export function calculateWB(stations: WBStation[], bewKg: number = BO105_SPECS.b
     cgLocationMm,
     isWeightValid,
     isCgValid,
+    fwdLimitMm: fwdLimit,
+    aftLimitMm: aftLimit,
     lateralCgMm,
     isLateralValid,
     zeroFuelWeightKg,
@@ -72,15 +82,29 @@ export function calculatePerformance(input: PerformanceInput): PerformanceResult
   const isaDevC = input.tempC - isaTemp;
   const densityAltFt = input.pressureAltFt + 120 * isaDevC + (1013.25 - input.qnhHpa) * 30;
 
-  // BO105 CBS-4 Hover Ceilings (ISA baseline: HIGE 8,200ft @ 2500kg, HOGE 5,400ft @ 2500kg) —
-  // the max weight stays at MTOW up to that baseline density altitude, then falls off past it.
-  const higeMaxWeightKg = Math.max(1800, Math.min(2500, 2500 - (densityAltFt - 8200) * 0.08));
-  const hogeMaxWeightKg = Math.max(1700, Math.min(2500, 2500 - (densityAltFt - 5400) * 0.12));
+  // BO105 CBS-4 Hover Ceilings. HIGE: baseline unchanged (2500kg holds to 8,200ft density
+  // altitude) but the falloff past it is recalibrated against a real RFM Fig. 5-7 worked
+  // example — PA 8,000ft/OAT +8°C (DA≈9,080ft by this same formula) gives max GM hover IGE
+  // (AEO, TAKEOFF power) = 2,265kg; the old slope (0.08) gave ~2,430kg there, ~165kg (7%) too
+  // permissive. HOGE: Fig. 5-9 has no single worked numeric example to anchor to the way HIGE
+  // does, but it qualitatively shows the "2500kg holds" flat zone ending well before 5,400ft —
+  // only in a cold/low-altitude corner — and max HOGE weight well below MTOW by the time
+  // conditions approach ISA. Baseline/slope below are a rough tightening toward that shape,
+  // not a precisely anchored figure like HIGE; treat with more caution until a numeric Fig.
+  // 5-9 data point is available.
+  const higeMaxWeightKg = Math.max(1800, Math.min(2500, 2500 - (densityAltFt - 8200) * 0.267));
+  const hogeMaxWeightKg = Math.max(1700, Math.min(2500, 2500 - (densityAltFt - 2000) * 0.3));
   const canHoge = input.takeoffWeightKg <= hogeMaxWeightKg;
 
-  // Single engine climb rate (OEI) ~ 450 fpm at sea level ISA, drops with altitude & weight
-  const weightFactor = (2500 - input.takeoffWeightKg) * 0.4;
-  const oeiClimbRateFpm = Math.max(0, Math.round(450 - densityAltFt * 0.05 + weightFactor));
+  // Single engine climb rate (OEI): baseline (450fpm sea-level ISA @ MTOW) unchanged, but the
+  // altitude/weight sensitivity is recalibrated against a real RFM Fig. 5-13 worked example —
+  // PA 8,500ft/OAT 0°C/GM 1,750kg (EPWR, emergency power) gives ROC ≈ 200fpm; the old
+  // coefficients (0.05 alt, 0.4 weight) gave ~313fpm there, ~55% too optimistic. Both
+  // coefficients are scaled by the same factor so the altitude-vs-weight sensitivity ratio the
+  // original author picked is preserved, only the overall magnitude is corrected to match the
+  // one real data point available.
+  const weightFactor = (2500 - input.takeoffWeightKg) * 0.73;
+  const oeiClimbRateFpm = Math.max(0, Math.round(450 - densityAltFt * 0.0912 + weightFactor));
 
   // VNE adjustment: 145 KIAS base, minus 3 KIAS per 1,000 ft DA above 3,000 ft
   let adjustedVneKias = BO105_SPECS.vneKias;

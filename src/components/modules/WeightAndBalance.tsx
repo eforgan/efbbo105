@@ -67,7 +67,7 @@ export const WeightAndBalanceModule: React.FC = () => {
           <div>
             <p className="text-[10px] text-slate-400 uppercase">Brazo CG Longitud</p>
             <p className="text-xl font-bold">{summary.cgLocationMm.toFixed(1)} <span className="text-xs">mm</span></p>
-            <p className="text-[10px] opacity-80">Rango: 3080 - 3420 mm</p>
+            <p className="text-[10px] opacity-80">Límite a {summary.totalWeightKg}kg: {summary.fwdLimitMm.toFixed(0)} - {summary.aftLimitMm.toFixed(0)} mm</p>
           </div>
           {summary.isCgValid ? <CheckCircle2 className="w-8 h-8 text-cyan-400" /> : <AlertTriangle className="w-8 h-8 text-amber-400" />}
         </div>

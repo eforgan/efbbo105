@@ -67,10 +67,11 @@ describe('calculateWB', () => {
   });
 });
 
-describe('calculateWB forward CG limit envelope', () => {
-  // calculateWB's fwdLimit steps mirror CG_ENVELOPE_POINTS (1400/2000kg->3080, 2400kg->3120,
-  // 2500kg->3180) but aren't derived from it — these tests pin the breakpoints so a future
-  // edit to one doesn't silently drift from the other reference table in bo105-specs.ts.
+describe('calculateWB CG envelope (RFM Fig. 6-2, CBS-4/CDN-BS-4 forward + aft limits)', () => {
+  // FWD_CG_ENVELOPE_POINTS: (1140,3081) -> (1900,3038) -> (2500,3082) — non-monotonic, dips
+  // at 1900kg. AFT_CG_ENVELOPE_POINTS: (1140,3395) -> (2000,3395) -> (2500,3270) — flat until
+  // 2000kg, then tapers forward. These tests pin both curves so a future edit to one doesn't
+  // silently drift from the shared reference table in bo105-specs.ts.
   // A single non-fuel payload station of weight (targetWeightKg - BEW) is placed at the arm
   // that makes the weighted average (BEW, bewArmMm) + (payloadWeight, armMm) land exactly on
   // targetCgMm, isolating the envelope check from BEW/fuel-station bookkeeping.
@@ -81,9 +82,8 @@ describe('calculateWB forward CG limit envelope', () => {
   }
 
   it.each([
-    [2000, 3080],
-    [2400, 3120],
-    [2500, 3180],
+    [1900, 3038],
+    [2500, 3082],
   ])('accepts CG exactly at the forward limit for %ikg (%imm)', (weightKg, limitMm) => {
     const summary = calculateWB(stationsForWeightAndCg(weightKg, limitMm));
     expect(summary.totalWeightKg).toBeCloseTo(weightKg, 5);
@@ -92,35 +92,56 @@ describe('calculateWB forward CG limit envelope', () => {
   });
 
   it.each([
-    [2000, 3080],
-    [2400, 3120],
-    [2500, 3180],
+    [1900, 3038],
+    [2500, 3082],
   ])('rejects CG 1mm forward of the limit for %ikg (%imm)', (weightKg, limitMm) => {
     const summary = calculateWB(stationsForWeightAndCg(weightKg, limitMm - 1));
     expect(summary.isCgValid).toBe(false);
   });
 
-  it('interpolates the forward limit linearly between 2000kg and 2400kg', () => {
-    const midWeightKg = 2200; // halfway -> fwdLimit should be halfway between 3080 and 3120
-    const expectedLimitMm = 3100;
-    const atLimit = calculateWB(stationsForWeightAndCg(midWeightKg, expectedLimitMm));
-    const belowLimit = calculateWB(stationsForWeightAndCg(midWeightKg, expectedLimitMm - 1));
+  it('interpolates the forward limit between the 1140kg and 1900kg vertices', () => {
+    const weightKg = 1700; // t = (1700-1140)/(1900-1140) = 0.736842...
+    const expectedLimitMm = 3081 + (3038 - 3081) * ((1700 - 1140) / (1900 - 1140));
+    const atLimit = calculateWB(stationsForWeightAndCg(weightKg, expectedLimitMm));
+    const belowLimit = calculateWB(stationsForWeightAndCg(weightKg, expectedLimitMm - 1));
     expect(atLimit.isCgValid).toBe(true);
     expect(belowLimit.isCgValid).toBe(false);
   });
 
-  it('interpolates the forward limit linearly between 2400kg and 2500kg', () => {
-    const midWeightKg = 2450; // halfway -> fwdLimit should be halfway between 3120 and 3180
-    const expectedLimitMm = 3150;
-    const atLimit = calculateWB(stationsForWeightAndCg(midWeightKg, expectedLimitMm));
-    const belowLimit = calculateWB(stationsForWeightAndCg(midWeightKg, expectedLimitMm - 1));
+  it('interpolates the forward limit between the 1900kg and 2500kg vertices (past the dip)', () => {
+    const weightKg = 2200; // halfway -> fwdLimit halfway between 3038 and 3082
+    const expectedLimitMm = 3060;
+    const atLimit = calculateWB(stationsForWeightAndCg(weightKg, expectedLimitMm));
+    const belowLimit = calculateWB(stationsForWeightAndCg(weightKg, expectedLimitMm - 1));
     expect(atLimit.isCgValid).toBe(true);
     expect(belowLimit.isCgValid).toBe(false);
   });
 
-  it('rejects CG aft of the fixed 3420mm aft limit regardless of weight', () => {
-    const summary = calculateWB(stationsForWeightAndCg(2000, 3421));
+  it.each([
+    [1700, 3395], // flat region, below the 2000kg aft breakpoint
+    [2000, 3395],
+    [2500, 3270],
+  ])('accepts CG exactly at the aft limit for %ikg (%imm)', (weightKg, limitMm) => {
+    const summary = calculateWB(stationsForWeightAndCg(weightKg, limitMm));
+    expect(summary.isCgValid).toBe(true);
+  });
+
+  it.each([
+    [1700, 3395],
+    [2000, 3395],
+    [2500, 3270],
+  ])('rejects CG 1mm aft of the limit for %ikg (%imm)', (weightKg, limitMm) => {
+    const summary = calculateWB(stationsForWeightAndCg(weightKg, limitMm + 1));
     expect(summary.isCgValid).toBe(false);
+  });
+
+  it('interpolates the aft limit between the 2000kg and 2500kg vertices (the taper)', () => {
+    const weightKg = 2250; // halfway -> aftLimit halfway between 3395 and 3270
+    const expectedLimitMm = 3332.5;
+    const atLimit = calculateWB(stationsForWeightAndCg(weightKg, expectedLimitMm));
+    const aboveLimit = calculateWB(stationsForWeightAndCg(weightKg, expectedLimitMm + 1));
+    expect(atLimit.isCgValid).toBe(true);
+    expect(aboveLimit.isCgValid).toBe(false);
   });
 });
 
@@ -201,14 +222,13 @@ describe('calculatePerformance', () => {
     expect(high.hogeMaxWeightKg).toBeLessThanOrEqual(low.hogeMaxWeightKg);
   });
 
-  // Regression test for a bug where the HIGE/HOGE ceilings were clamped at MTOW (2500kg) for
-  // the entire pressure-altitude range the crew actually operates in (real field elevations
-  // are ~900-2200ft), making the slider look like it did nothing: the code's own comment
-  // documents the ISA baseline as "HIGE 8,200ft @ 2500kg, HOGE 5,400ft @ 2500kg" but the
-  // formula's breakpoints were 4,000ft/2,000ft instead. tempC=15/qnhHpa=1013.25 keeps
-  // densityAltFt == pressureAltFt exactly (zero ISA deviation), so the breakpoints can be
-  // hit precisely.
-  describe('HIGE/HOGE ceilings hold at MTOW up to their documented baseline altitude', () => {
+  // HIGE/HOGE baselines and falloff, recalibrated against real RFM Figs. 5-7/5-9 worked
+  // examples (see the comment in calculatePerformance) — HIGE keeps its 8,200ft baseline but
+  // falls off faster past it; HOGE's baseline moved down from 5,400ft to 2,000ft to match the
+  // RFM's qualitative shape (2500kg only holds in a cold/low-altitude corner). tempC=15/
+  // qnhHpa=1013.25 keeps densityAltFt == pressureAltFt exactly (zero ISA deviation), so the
+  // baseline breakpoints can be hit precisely.
+  describe('HIGE/HOGE ceilings hold at MTOW up to their (RFM-recalibrated) baseline altitude', () => {
     // tempC set to the ISA temperature *for that specific pressure altitude* (15 - alt/1000*2)
     // zeroes out isaDevC, so densityAltFt == pressureAltFt exactly and the baseline breakpoint
     // can be hit precisely.
@@ -219,28 +239,29 @@ describe('calculatePerformance', () => {
       };
     }
 
-    it('keeps HOGE at 2500kg up to 5,400ft density altitude, then reduces it', () => {
-      const atBaseline = calculatePerformance(isaConditionsAt(5400));
-      const pastBaseline = calculatePerformance(isaConditionsAt(6400));
+    it('keeps HOGE at 2500kg up to 2,000ft density altitude, then reduces it', () => {
+      const atBaseline = calculatePerformance(isaConditionsAt(2000));
+      const pastBaseline = calculatePerformance(isaConditionsAt(3000));
       expect(atBaseline.hogeMaxWeightKg).toBe(2500);
-      expect(pastBaseline.hogeMaxWeightKg).toBe(2380); // 2500 - 1000ft * 0.12kg/ft
+      expect(pastBaseline.hogeMaxWeightKg).toBe(2200); // 2500 - 1000ft * 0.3kg/ft
     });
 
     it('keeps HIGE at 2500kg up to 8,200ft density altitude, then reduces it', () => {
       const atBaseline = calculatePerformance(isaConditionsAt(8200));
       const pastBaseline = calculatePerformance(isaConditionsAt(9200));
       expect(atBaseline.higeMaxWeightKg).toBe(2500);
-      expect(pastBaseline.higeMaxWeightKg).toBe(2420); // 2500 - 1000ft * 0.08kg/ft
+      expect(pastBaseline.higeMaxWeightKg).toBe(2233); // 2500 - 1000ft * 0.267kg/ft
     });
 
-    it('changes the HOGE ceiling across the altitudes typical of Modena field elevations (900-2200ft)', () => {
+    it('now shows a real HOGE reduction within the altitudes typical of Modena field elevations (900-2200ft)', () => {
       const low = calculatePerformance(isaConditionsAt(900));
       const high = calculatePerformance(isaConditionsAt(2200));
-      // Both stay clamped at MTOW here (well below the 5,400ft HOGE baseline) — this asserts
-      // the *correct* flat behavior at real operating altitudes, as opposed to the old bug
-      // where the ceiling was already declining by 2000ft.
+      // Below the (lowered) 2,000ft baseline, HOGE still holds at MTOW...
       expect(low.hogeMaxWeightKg).toBe(2500);
-      expect(high.hogeMaxWeightKg).toBe(2500);
+      // ...but past it, HOGE now correctly shows a reduction even at a modest, realistic field
+      // elevation — this is the RFM recalibration actually taking effect, not the earlier bug
+      // where the ceiling used to stay artificially flat across this whole range.
+      expect(high.hogeMaxWeightKg).toBeLessThan(2500);
     });
   });
 
@@ -283,6 +304,13 @@ describe('calculatePerformance OEI (single-engine) climb rate', () => {
   it('never reports a negative OEI climb rate in an extreme hot-and-high case', () => {
     const extreme = calculatePerformance({ ...base, pressureAltFt: 12000, tempC: 40, takeoffWeightKg: 2500 });
     expect(extreme.oeiClimbRateFpm).toBeGreaterThanOrEqual(0);
+  });
+
+  it('matches the real RFM Fig. 5-13 worked example (PA 8,500ft/OAT 0°C/GM 1,750kg, EPWR ≈ 200fpm)', () => {
+    const result = calculatePerformance({
+      pressureAltFt: 8500, tempC: 0, qnhHpa: 1013.25, windSpeedKt: 0, windDirDeg: 0, runwayHeadingDeg: 0, takeoffWeightKg: 1750,
+    });
+    expect(result.oeiClimbRateFpm).toBeCloseTo(200, -1); // within 5fpm of the RFM figure
   });
 });
 

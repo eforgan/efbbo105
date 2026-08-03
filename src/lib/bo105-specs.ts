@@ -38,12 +38,21 @@ export function getFleetAircraft(mission: MissionType): FleetAircraft {
   };
 }
 
-// Longitudinal CG Envelope for BO 105 CBS-4 (Station mm vs Weight kg)
-export const CG_ENVELOPE_POINTS = [
-  { weight: 1400, fwdArm: 3080, aftArm: 3420 },
-  { weight: 2000, fwdArm: 3080, aftArm: 3420 },
-  { weight: 2400, fwdArm: 3120, aftArm: 3420 },
-  { weight: 2500, fwdArm: 3180, aftArm: 3420 },
+// Longitudinal CG envelope for the BO 105 CBS-4 / CDN-BS-4 variants, read off RFM Fig. 6-2
+// (EFFECTIVITY: Variants CBS-4 and CDN-BS-4). The forward and aft limits are each their own
+// piecewise-linear curve over weight and don't share breakpoints — the forward limit dips at
+// 1900kg before rising again toward MTOW, while the aft limit stays flat until 2000kg and only
+// then tapers forward — so they're kept as two separate vertex lists rather than one shared
+// table (calculateWB in lib/calculations.ts interpolates each independently).
+export const FWD_CG_ENVELOPE_POINTS = [
+  { weightKg: 1140, armMm: 3081 },
+  { weightKg: 1900, armMm: 3038 },
+  { weightKg: 2500, armMm: 3082 },
+];
+export const AFT_CG_ENVELOPE_POINTS = [
+  { weightKg: 1140, armMm: 3395 },
+  { weightKg: 2000, armMm: 3395 },
+  { weightKg: 2500, armMm: 3270 },
 ];
 
 // Official Modena HEMS Configuration Stations: Piloto + Copiloto + Médico Aeroevacuador + 1 Paciente en Camilla

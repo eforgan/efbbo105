@@ -23,16 +23,17 @@ export const CGGraph: React.FC<CGGraphProps> = ({ summary }) => {
   const toX = (arm: number) => padding + ((arm - minArm) / (maxArm - minArm)) * (width - padding * 2);
   const toY = (w: number) => height - padding - ((w - minW) / (maxW - minW)) * (height - padding * 2);
 
-  // Polygon points for envelope boundary
-  // Forward limit curve: (3080,1400) -> (3080,2000) -> (3120,2400) -> (3180,2500)
-  // Aft limit line: (3420,2500) -> (3420,1400)
+  // Envelope boundary per RFM Fig. 6-2 (CBS-4/CDN-BS-4 variants) — see FWD_CG_ENVELOPE_POINTS
+  // / AFT_CG_ENVELOPE_POINTS in bo105-specs.ts (the source calculateWB checks against).
+  // Forward limit curve: (3081,1140) -> (3038,1900) -> (3082,2500)
+  // Aft limit curve: (3270,2500) -> (3395,2000) -> (3395,1140)
   const envPoly = `
-    ${toX(3080)},${toY(1400)}
-    ${toX(3080)},${toY(2000)}
-    ${toX(3120)},${toY(2400)}
-    ${toX(3180)},${toY(2500)}
-    ${toX(3420)},${toY(2500)}
-    ${toX(3420)},${toY(1400)}
+    ${toX(3081)},${toY(1140)}
+    ${toX(3038)},${toY(1900)}
+    ${toX(3082)},${toY(2500)}
+    ${toX(3270)},${toY(2500)}
+    ${toX(3395)},${toY(2000)}
+    ${toX(3395)},${toY(1140)}
   `;
 
   const takeoffX = toX(summary.cgLocationMm);
