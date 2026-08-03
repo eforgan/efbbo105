@@ -19,7 +19,7 @@ export const WeatherDecoderModule: React.FC = () => {
   const loadWeather = React.useCallback(async () => {
     setStatus('loading');
     try {
-      const res = await fetch('/api/weather');
+      const res = await fetch('/api/weather', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok || !data.metars?.length) throw new Error('empty response');
       setStations(data.metars);
@@ -35,6 +35,18 @@ export const WeatherDecoderModule: React.FC = () => {
   React.useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount, this is the documented async-effect pattern
     loadWeather();
+  }, [loadWeather]);
+
+  // Backgrounding the PWA (switching apps on a tablet, locking the screen) and returning to
+  // it does NOT unmount/remount this component — the mount-effect above only covers switching
+  // between EFB tabs. Re-fetch on the browser's own visibilitychange event so METAR/TAF is
+  // current every time the crew actually looks at this section again, not just the first time.
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') loadWeather();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [loadWeather]);
 
   const activeStation = stations.find(s => s.icao === selectedIcao) || stations[0];
