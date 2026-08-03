@@ -10,10 +10,12 @@ interface CGGraphProps {
 export const CGGraph: React.FC<CGGraphProps> = ({ summary }) => {
   // SVG coordinates bounds
   // Arm range: 3000mm to 3500mm
-  // Weight range: 1300kg to 2600kg
+  // Weight range: 1100kg to 2600kg — the envelope polygon's lowest vertices sit at 1140kg
+  // (RFM Fig. 6-2's own lower bound), so minW must stay below that or the polygon draws past
+  // the bottom of the background rect below.
   const minArm = 3000;
   const maxArm = 3500;
-  const minW = 1300;
+  const minW = 1100;
   const maxW = 2600;
 
   const width = 450;
