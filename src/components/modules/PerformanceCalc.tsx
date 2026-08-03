@@ -260,8 +260,11 @@ export const PerformanceCalcModule: React.FC = () => {
                     strokeDasharray="5 5"
                     label={{ value: `Pot. Disponible: ${powerCurve.availablePowerKw.toFixed(0)} kW`, fill: '#f59e0b', fontSize: 10, position: 'insideTopRight' }}
                   />
-                  <ReferenceLine x={powerCurve.minPowerSpeedKt} stroke="#22d3ee" strokeDasharray="3 3" label={{ value: 'Mín. Resist.', fill: '#22d3ee', fontSize: 9, position: 'top' }} />
-                  <ReferenceLine x={powerCurve.bestRangeSpeedKt} stroke="#10b981" strokeDasharray="3 3" label={{ value: 'Máx. Alcance', fill: '#10b981', fontSize: 9, position: 'top' }} />
+                  {/* Stacked at different heights (dy) rather than both at the chart top — on
+                      a narrow screen, or whenever the two speeds land close together, same-row
+                      labels overlap into unreadable text. */}
+                  <ReferenceLine x={powerCurve.minPowerSpeedKt} stroke="#22d3ee" strokeDasharray="3 3" label={{ value: 'Mín. Resist.', fill: '#22d3ee', fontSize: 9, position: 'top', dy: 0 }} />
+                  <ReferenceLine x={powerCurve.bestRangeSpeedKt} stroke="#10b981" strokeDasharray="3 3" label={{ value: 'Máx. Alcance', fill: '#10b981', fontSize: 9, position: 'top', dy: 12 }} />
                   <Line type="monotone" dataKey="inducedPowerKw" name="Potencia Inducida (kW)" stroke="#a78bfa" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="parasitePowerKw" name="Potencia Parásita (kW)" stroke="#f472b6" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="totalPowerKw" name="Potencia Total Requerida (kW)" stroke="#06b6d4" strokeWidth={2.5} dot={false} />

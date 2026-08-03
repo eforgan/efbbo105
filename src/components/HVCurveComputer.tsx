@@ -217,7 +217,15 @@ export default function HVCurveComputer() {
             <YAxis domain={[0, yAxisMax]} tickCount={8} tick={{ fill: '#94a3b8', fontSize: 11 }}>
               <Label value="Altura (ft AGL)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle', fill: '#94a3b8' }} />
             </YAxis>
-            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }}
+              labelFormatter={(label) => `Velocidad: ${label} KIAS`}
+              formatter={(value) =>
+                Array.isArray(value)
+                  ? `${Math.round(Number(value[0]))}–${Math.round(Number(value[1]))} ft AGL`
+                  : `${Math.round(Number(value))} ft AGL`
+              }
+            />
             
             {/* Área a Evitar Principal */}
             <Area 

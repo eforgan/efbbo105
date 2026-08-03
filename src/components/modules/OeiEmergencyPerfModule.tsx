@@ -5,19 +5,26 @@ import { Flame, ShieldAlert, AlertTriangle, ArrowUpRight, Gauge, Activity, BarCh
 import { BO105_SPECS } from '../../lib/bo105-specs';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, LineChart, Line } from 'recharts';
 
+// Both figures below come from the same climb-rate model (climb rate decreasing 80fpm per
+// 1,000ft) so the ceiling is always exactly the altitude where that model's climb rate
+// crosses zero — computing them as two independent formulas could show a "ceiling" you're
+// supposedly still under while the climb rate at that same altitude was already negative,
+// which is a contradiction, not two views of the same thing.
+function oeiClimbRateAt(weightKg: number, pressAltFt: number, oat: number): number {
+  return 350 - ((weightKg - 2000) / 100) * 110 - (pressAltFt / 1000) * 80 - (oat - 15) * 12;
+}
+function oeiCeilingFor(weightKg: number, oat: number): number {
+  const seaLevelClimbFpm = oeiClimbRateAt(weightKg, 0, oat);
+  return Math.max(0, Math.round(seaLevelClimbFpm * 12.5)); // fpm -> ft (climb rate falls 80fpm/1000ft)
+}
+
 export const OeiEmergencyPerfModule: React.FC = () => {
   const [takeoffWeightKg, setTakeoffWeightKg] = React.useState<number>(2350);
   const [pressureAltFt, setPressureAltFt] = React.useState<number>(1500);
   const [tempC, setTempC] = React.useState<number>(22);
 
-  // OEI Performance Calculations
-  const weightPenaltyFt = ((takeoffWeightKg - 2000) / 100) * 800;
-  const tempPenaltyFt = (tempC - 15) * 120;
-  const oeiCeilingFt = Math.max(0, Math.round(6500 - weightPenaltyFt - tempPenaltyFt));
-
-  // OEI Climb Rate (fpm)
-  const altitudePenaltyFpm = (pressureAltFt / 1000) * 80;
-  const oeiClimbRateFpm = Math.round(350 - ((takeoffWeightKg - 2000) / 100) * 110 - altitudePenaltyFpm - (tempC - 15) * 12);
+  const oeiCeilingFt = oeiCeilingFor(takeoffWeightKg, tempC);
+  const oeiClimbRateFpm = Math.round(oeiClimbRateAt(takeoffWeightKg, pressureAltFt, tempC));
 
   const isLevelFlightPossible = pressureAltFt <= oeiCeilingFt;
   const bestVyKias = 65; // Best Rate of Climb OEI
@@ -26,17 +33,12 @@ export const OeiEmergencyPerfModule: React.FC = () => {
   // Generate OEI Ceiling & Climb Rate Data across Weights (1800 kg to 2500 kg)
   const oeiWeightCurveData = React.useMemo(() => {
     const weights = [1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500];
-    return weights.map(w => {
-      const wPenFt = ((w - 2000) / 100) * 800;
-      const ceiling = Math.max(0, Math.round(6500 - wPenFt - (tempC - 15) * 120));
-      const climb = Math.round(350 - ((w - 2000) / 100) * 110 - (pressureAltFt / 1000) * 80 - (tempC - 15) * 12);
-      return {
-        weightKg: `${w} kg`,
-        oeiCeilingFt: ceiling,
-        oeiClimbFpm: climb,
-        actualTow: takeoffWeightKg,
-      };
-    });
+    return weights.map(w => ({
+      weightKg: `${w} kg`,
+      oeiCeilingFt: oeiCeilingFor(w, tempC),
+      oeiClimbFpm: Math.round(oeiClimbRateAt(w, pressureAltFt, tempC)),
+      actualTow: takeoffWeightKg,
+    }));
   }, [tempC, pressureAltFt, takeoffWeightKg]);
 
   // Generate Drift Down Descent Profile if current altitude > OEI ceiling
