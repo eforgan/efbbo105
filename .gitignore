@@ -53,6 +53,10 @@ next-env.d.ts
 ~$*
 .claude/
 
+# raw source PDFs used to hand-extract public/docs and public/images/rfm — not read by
+# the app itself, kept on disk locally for regenerating those assets if needed
+/RFM BO-105/
+
 .vercel
 
 .env*

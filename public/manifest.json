@@ -16,11 +16,6 @@
       "src": "/bo105_app_icon.png",
       "sizes": "512x512",
       "type": "image/png"
-    },
-    {
-      "src": "/modenaceacfondoblanco.png",
-      "sizes": "1000x296",
-      "type": "image/png"
     }
   ]
 }
